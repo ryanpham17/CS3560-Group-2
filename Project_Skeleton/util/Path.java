@@ -2,9 +2,9 @@ package util;
 
 // dr is row change, dc is column change.
 public class Path {
-    public int dr, dc;
-    public Path(int dr, int dc) {
-        this.dr = dr;
-        this.dc = dc;
+    public int rowMove, columnMove;
+    public Path(int row, int column) {
+        this.rowMove = row;
+        this.columnMove = column;
     }
 }
