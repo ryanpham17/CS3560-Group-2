@@ -806,10 +806,26 @@ class Game {
         return completeTrade(counterGold);
       }
 
-      // Offer less than asking price → 75% success rate
-      const accepted = Math.random() < 0.75;
+      // Offer less than asking price → success rate reduced by 15% per gold below asking.
+      // Example: asking 10, offer 8 → 2 gold below → 70% success chance.
+      const generousPriceDiff = Math.max(0, baseCost - counterGold);
+      const successRate = Math.max(0, 1 - 0.15 * generousPriceDiff);
+      const accepted = Math.random() < successRate;
       if (!accepted) {
         trader.incrementCounter();
+        if (trader.getCounterOfferCount() >= 7) {
+          trader.setState('unavailable');
+          if (this.traderTile) {
+            this.traderTile.removeResource();
+          }
+          this.leaveTrader();
+          return {
+            error:
+              'After many failed offers, even the generous trader decides to move on.',
+            traderGone: true,
+          };
+        }
+
         return {
           error: 'The generous trader declines this offer. Try offering a bit more gold.',
         };
@@ -873,8 +889,11 @@ class Game {
       return completeTrade(counterGold);
     }
 
-    // Lower than asking price → flat 50/50 success chance
-    const accepted = Math.random() < 0.5;
+    // Lower than asking price → success chance reduced by 20% per gold below asking
+    // Example: asking 10, offer 6 → 4 gold below → 20% success chance
+    const regularPriceDiff = Math.max(0, baseCost - counterGold);
+    const successRate = Math.max(0, 1 - 0.2 * regularPriceDiff);
+    const accepted = Math.random() < successRate;
 
     if (!accepted) {
       trader.incrementCounter();
