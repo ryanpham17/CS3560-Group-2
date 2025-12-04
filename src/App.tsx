@@ -963,6 +963,25 @@ class Game {
     this.activeOffer = null;
   }
 
+  // Handle when the player explicitly rejects the current trader's offer
+  rejectCurrentTrade() {
+    if (!this.activeTrader) {
+      return;
+    }
+
+    const traderType = this.activeTrader.getTraderType();
+
+    // Impatient traders immediately leave the map for this level if you reject their offer
+    if (traderType === 'impatient') {
+      this.activeTrader.setState('unavailable');
+      if (this.traderTile) {
+        this.traderTile.removeResource();
+      }
+    }
+
+    this.leaveTrader();
+  }
+
   // Accept the current offer at the trader's asking price (no randomness)
   acceptCurrentOffer() {
     if (!this.traderTile || !this.activeTrader || !this.activeOffer) {
@@ -1089,7 +1108,7 @@ const TileGame: React.FC = () => {
   };
   const handleLeaveTrader = () => {
     if (game) {
-      game.leaveTrader();
+      game.rejectCurrentTrade();
     }
     setShowTradeMenu(false);
     setTraderType(null);
@@ -1505,11 +1524,11 @@ const TileGame: React.FC = () => {
                 </div>
                 <div className="text-sm text-gray-400 mb-4 dialog-text">
                   {traderType === 'regular' &&
-                    'A patient merchant with steady prices and a fair attitude.'}
+                    'A merchant with steady prices and a fair attitude. They leave after 5 bad counter-offers in a row!'}
                   {traderType === 'impatient' &&
-                    'Offers are risky: too low and they may leave entirely.'}
+                    'Offers are risky: too low and they will leave entirely. Rejecting their trades or making 3 bad counter-offers in a row will cause them to leave as well!'}
                   {traderType === 'generous' &&
-                    'Kind-hearted and honest. They refuse to take more than they ask.'}
+                    'Kind-hearted, patient, and honest. They refuse to take more than they ask. However, they will leave after 7 bad counter-offers in a row!'}
                 </div>
                 <div className="offer-display mb-4">
                   <div className="offer-line">
