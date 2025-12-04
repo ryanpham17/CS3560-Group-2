@@ -1,0 +1,445 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap');
+
+body {
+  margin: 0;
+  /* Silkscreen is a clean pixel font; Press Start 2P as backup for extra blocky look */
+  font-family: 'Silkscreen', 'Press Start 2P', 'Courier New', monospace;
+  background: #000;
+  color: #e5e7eb;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.hero-panel {
+  background: #02020a;
+}
+
+/* Layout helpers to match the classNames used in App.tsx */
+.flex {
+  display: flex;
+}
+.flex-col {
+  flex-direction: column;
+}
+.items-center {
+  align-items: center;
+}
+.justify-center {
+  justify-content: center;
+}
+.justify-between {
+  justify-content: space-between;
+}
+.gap-4 {
+  gap: 1rem;
+}
+.gap-3 {
+  gap: 0.75rem;
+}
+.gap-6 {
+  gap: 1.5rem;
+}
+.min-h-screen {
+  min-height: 100vh;
+}
+.p-4 {
+  padding: 1rem;
+}
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+.mb-3 {
+  margin-bottom: 0.75rem;
+}
+.mb-4 {
+  margin-bottom: 1rem;
+}
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
+.mb-8 {
+  margin-bottom: 2rem;
+}
+.mt-2 {
+  margin-top: 0.5rem;
+}
+.mt-4 {
+  margin-top: 1rem;
+}
+.text-center {
+  text-align: center;
+}
+.text-white {
+  color: #f9fafb;
+}
+.text-gray-400 {
+  color: #9ca3af;
+}
+.text-yellow-300 {
+  color: #fde68a;
+}
+.text-yellow-400 {
+  color: #facc15;
+}
+.text-blue-300 {
+  color: #93c5fd;
+}
+.text-blue-400 {
+  color: #60a5fa;
+}
+.text-red-300 {
+  color: #fca5a5;
+}
+.text-red-400 {
+  color: #f87171;
+}
+.text-green-300 {
+  color: #86efac;
+}
+.text-green-400 {
+  color: #4ade80;
+}
+.text-purple-400 {
+  color: #c4b5fd;
+}
+.text-cyan-400 {
+  color: #22d3ee;
+}
+.text-2xl {
+  font-size: 1.5rem;
+}
+.text-3xl {
+  font-size: 1.875rem;
+}
+.text-4xl {
+  font-size: 2.25rem;
+}
+.text-lg {
+  font-size: 1.125rem;
+}
+.text-sm {
+  font-size: 0.875rem;
+}
+.text-xs {
+  font-size: 0.75rem;
+}
+.font-bold {
+  font-weight: 700;
+}
+.font-normal {
+  font-weight: 400;
+}
+
+.bg-gray-800 {
+  background-color: rgba(17, 24, 39, 0.9);
+}
+.bg-gray-900 {
+  background-color: #020617;
+}
+.bg-gray-600 {
+  background-color: #4b5563;
+}
+.bg-gray-700 {
+  background-color: #374151;
+}
+.bg-green-600 {
+  background-color: #16a34a;
+}
+.bg-green-700 {
+  background-color: #15803d;
+}
+.bg-blue-600 {
+  background-color: #2563eb;
+}
+.bg-blue-700 {
+  background-color: #1d4ed8;
+}
+.bg-red-600 {
+  background-color: #dc2626;
+}
+.bg-red-700 {
+  background-color: #b91c1c;
+}
+.bg-yellow-600 {
+  background-color: #ca8a04;
+}
+.bg-yellow-700 {
+  background-color: #a16207;
+}
+.bg-purple-600 {
+  background-color: #7c3aed;
+}
+.bg-purple-700 {
+  background-color: #6d28d9;
+}
+.bg-cyan-600 {
+  background-color: #0891b2;
+}
+.bg-cyan-700 {
+  background-color: #0e7490;
+}
+
+.rounded {
+  border-radius: 0.25rem;
+}
+.rounded-lg {
+  border-radius: 0.75rem;
+}
+
+.border-4 {
+  border-width: 4px;
+}
+.border-gray-600 {
+  border-color: #4b5563;
+}
+.border-yellow-500 {
+  border-color: #eab308;
+}
+
+.text-yellow-300 {
+  color: #fde68a;
+}
+
+.w-full {
+  width: 100%;
+}
+.w-4 {
+  width: 1rem;
+}
+.h-4 {
+  height: 1rem;
+}
+
+.space-y-2 > * + * {
+  margin-top: 0.6rem;
+}
+
+.relative {
+  position: relative;
+}
+.absolute {
+  position: absolute;
+}
+.inset-0 {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+.overflow-hidden {
+  overflow: hidden;
+}
+.z-20 {
+  z-index: 20;
+}
+
+.grid {
+  display: grid;
+}
+.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.transition {
+  transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.hover\:bg-green-700:hover {
+  background-color: #15803d;
+}
+.hover\:bg-blue-700:hover {
+  background-color: #1d4ed8;
+}
+.hover\:bg-red-700:hover {
+  background-color: #b91c1c;
+}
+.hover\:bg-yellow-700:hover {
+  background-color: #a16207;
+}
+.hover\:bg-purple-700:hover {
+  background-color: #6d28d9;
+}
+.hover\:bg-cyan-700:hover {
+  background-color: #0e7490;
+}
+.hover\:bg-gray-700:hover {
+  background-color: #374151;
+}
+
+button {
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  font-family: 'Silkscreen', 'Press Start 2P', 'Courier New', monospace;
+  padding: 0.6rem 1.4rem;
+  letter-spacing: 0.04em;
+}
+button:focus-visible {
+  outline: 2px solid #facc15;
+  outline-offset: 2px;
+}
+
+.game-panel {
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+  border-radius: 1rem;
+  padding: 1.5rem 1.75rem 1.75rem;
+  background: linear-gradient(180deg, #050505 0, #020202 40%, #000 100%);
+  border: 4px solid #4b5563;
+  outline: 4px solid #000;
+}
+
+.game-panel::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 1.25rem;
+  border: 2px solid rgba(15, 23, 42, 0.9);
+  pointer-events: none;
+}
+
+.game-panel {
+  position: relative;
+}
+
+.game-title {
+  text-shadow: 0 3px 0 #020617, 0 0 12px rgba(96, 165, 250, 0.85);
+  letter-spacing: 0.08em;
+}
+
+.game-logo {
+  max-width: 420px;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 6px 0 #111827) drop-shadow(0 0 12px rgba(250, 204, 21, 0.65));
+}
+
+.hud-bar {
+  background: #050505;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 3px solid #4b5563;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+.hud-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hud-value {
+  font-size: 0.8rem;
+}
+
+.stat-pill {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.9);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.message-banner {
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.75rem;
+  background: #000;
+  color: #e5e7eb;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 3px #e5e7eb, 0 0 0 5px #020617, 0 12px 30px rgba(0, 0, 0, 0.75);
+  border: 2px solid #e5e7eb;
+}
+
+.overlay-card {
+  padding: 1.5rem 1.75rem;
+  border-radius: 0.75rem;
+  background: #02020a;
+  border: 3px solid #4b5563;
+  box-shadow: 0 0 0 3px #000, 0 18px 45px rgba(0, 0, 0, 0.95);
+}
+
+.trade-card {
+  width: 480px;
+  max-width: 100%;
+}
+
+.dialog-text {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.offer-display {
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: inset 0 0 20px rgba(15, 23, 42, 0.8);
+}
+
+.offer-line + .offer-line {
+  margin-top: 0.5rem;
+}
+
+.counter-section {
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.counter-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.counter-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 0.5rem;
+  border: none;
+  background: rgba(59, 130, 246, 0.2);
+  color: #f8fafc;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.counter-btn:hover {
+  background: rgba(59, 130, 246, 0.35);
+}
+
+.counter-btn:active {
+  transform: scale(0.95);
+}
+
+.counter-input {
+  width: 120px;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(75, 85, 99, 0.8);
+  background: rgba(0, 0, 0, 0.9);
+  color: #f8fafc;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.trade-feedback {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  color: #fcd34d;
+}
