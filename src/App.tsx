@@ -151,7 +151,6 @@ type PlayerResources = {
   water: number;
   gold: number;
   lives: number;
-  charisma: number;
   level?: number;
 };
 
@@ -251,7 +250,7 @@ class TraderResource extends Resource {
       impatient: 'Impatient Trader',
       generous: 'Generous Trader',
     } as const;
-    return `Found a ${typeNames[this.traderType]}! Press T to trade.`;
+    return `Found a ${typeNames[this.traderType]}!`;
   }
 
   isAvailable(currentTurn: number) {
@@ -334,7 +333,6 @@ class Player extends GameObject {
   gold: number;
   visionRadius: number;
   lives: number;
-  charisma: number;
 
   constructor(
     x: number,
@@ -351,7 +349,6 @@ class Player extends GameObject {
     this.gold = gold;
     this.visionRadius = visionRadius;
     this.lives = lives;
-    this.charisma = 0;
   }
 
   move(newX: number, newY: number) {
@@ -364,7 +361,6 @@ class Player extends GameObject {
       water: this.water,
       gold: this.gold,
       lives: this.lives,
-      charisma: this.charisma,
     };
   }
 
@@ -406,14 +402,6 @@ class Player extends GameObject {
 
   getLives() {
     return this.lives;
-  }
-
-  getCharisma() {
-    return this.charisma;
-  }
-
-  addCharisma(amount: number) {
-    this.charisma += amount;
   }
 }
 
@@ -588,7 +576,6 @@ class Game {
         visionRadius,
         startingResources.lives,
       );
-      this.player.charisma = startingResources.charisma;
     } else {
       // Start fresh
       this.player = new Player(1, 1, config.food, config.water, 0, visionRadius, 3);
@@ -940,7 +927,6 @@ class Game {
       water: resources.water,
       gold: resources.gold,
       lives: resources.lives,
-      charisma: resources.charisma,
       level: this.currentLevel + 1,
     };
   }
@@ -1183,13 +1169,6 @@ const TileGame: React.FC = () => {
             case 'D':
               handleMove(1, 0);
               break;
-            case 't':
-            case 'T':
-              if (game.hasTrader()) {
-                setShowTradeMenu(true);
-                setTraderType(game.getTraderType());
-              }
-              break;
           }
         }
       };
@@ -1338,7 +1317,7 @@ const TileGame: React.FC = () => {
 
   return (
     <div className="app-shell">
-      <div className="game-panel" style={{ maxWidth: 1100, width: '100%' }}>
+      <div className="game-panel" style={{ maxWidth: 1400, width: '100%' }}>
         <div className="mb-3 text-white text-center">
           <div className="mb-2">
             <img
@@ -1386,9 +1365,11 @@ const TileGame: React.FC = () => {
               </span>
             </div>
           </div>
-          {message && (
-            <div className="message-banner text-sm mt-2">{message}</div>
-          )}
+          <div style={{ minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {message && (
+              <div className="message-banner text-sm mt-2">{message}</div>
+            )}
+          </div>
         </div>
 
       <div
@@ -1396,131 +1377,224 @@ const TileGame: React.FC = () => {
           marginTop: '16px',
         }}
       >
-        <div style={{ width: viewportWidth, margin: '0 auto 20px auto' }}>
-          <div
-            className="relative border-4 border-gray-600 mb-3 overflow-hidden"
-            style={{
-              width: viewportWidth,
-              height: viewportHeight,
-              backgroundColor: '#0b1120',
-              imageRendering: 'pixelated',
-            }}
-          >
+        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'nowrap', maxWidth: '100%', overflow: 'hidden', paddingLeft: '20px', paddingRight: '20px' }}>
+          {/* Left side: Trade menu */}
+          <div style={{ width: 320, flexShrink: 0, minWidth: 0 }}>
+            <div className="overlay-card trade-card text-center" style={{ width: '81%', minHeight: '575px' }}>
+              {showTradeMenu && currentOffer ? (
+                <>
+                  <div className="text-2xl mb-1">
+                    {traderType === 'regular' && '🧙 Regular Trader'}
+                    {traderType === 'impatient' && '⚡ Impatient Trader'}
+                    {traderType === 'generous' && '💝 Generous Trader'}
+                  </div>
+                  <div className="text-xs text-gray-400 mb-3 dialog-text">
+                    {traderType === 'regular' &&
+                      'A merchant with steady prices and a fair attitude. They leave after 5 bad counter-offers in a row!'}
+                    {traderType === 'impatient' &&
+                      'Offers are risky: too low and they will leave entirely. Rejecting their trades or making 3 bad counter-offers in a row will cause them to leave as well!'}
+                    {traderType === 'generous' &&
+                      'Kind-hearted, patient, and honest. They refuse to take more than they ask. However, they will leave after 7 bad counter-offers in a row!'}
+                  </div>
+                  <div className="offer-display mb-3">
+                    <div className="offer-line">
+                      They offer{' '}
+                      <span className="text-yellow-300 font-bold">
+                        {currentOffer.item === 'life'
+                          ? '+1 Life'
+                          : `+${currentOffer.amount} ${
+                              currentOffer.item === 'food' ? 'Food' : 'Water'
+                            }`}
+                      </span>
+                    </div>
+                    <div className="offer-line">
+                      Requested price:{' '}
+                      <span className="text-cyan-400 font-bold">
+                        {currentOffer.baseCost} gold
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 mb-3">
+                    <button
+                      onClick={() => {
+                        if (!game) return;
+                        const result = (game as any).acceptCurrentOffer
+                          ? (game as any).acceptCurrentOffer()
+                          : { error: 'Accept not available.' };
+                        setGameState(game.getGameState());
+                        if ('error' in result && result.error) {
+                          setTradeFeedback(result.error);
+                        } else if ('success' in result && result.success) {
+                          setTradeFeedback(result.message);
+                          const nextOffer =
+                            (result as { nextOffer?: TraderOffer }).nextOffer ||
+                            game.getActiveOffer();
+                          setCurrentOffer(nextOffer || null);
+                          setCounterGold(nextOffer ? nextOffer.baseCost : 0);
+                        }
+                      }}
+                      className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-sm"
+                    >
+                      Accept Trade
+                    </button>
+                    <button
+                      onClick={handleLeaveTrader}
+                      className="w-full px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs"
+                    >
+                      Reject Trade
+                    </button>
+                  </div>
+
+                  <div className="counter-section mb-3 text-center">
+                    <div className="text-xs text-gray-300 mb-1">
+                      Make Counter-Offer:
+                    </div>
+                    <div className="counter-controls justify-center">
+                      <button
+                        className="counter-btn"
+                        onClick={() =>
+                          setCounterGold((prev) => Math.max(1, prev - 1))
+                        }
+                      >
+                        −
+                      </button>
+                      <input
+                        className="counter-input"
+                        type="number"
+                        min={1}
+                        value={counterGold}
+                        onChange={(e) =>
+                          setCounterGold(
+                            Math.max(1, Number(e.target.value) || 1),
+                          )
+                        }
+                      />
+                      <button
+                        className="counter-btn"
+                        onClick={() => setCounterGold((prev) => prev + 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {tradeFeedback && (
+                    <div className="trade-feedback mb-2 text-xs">{tradeFeedback}</div>
+                  )}
+
+                  <div className="space-y-2">
+                    <button
+                      onClick={handleCounterOffer}
+                      className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm"
+                    >
+                      Submit Counter-Offer
+                    </button>
+                    <button
+                      onClick={() => setCounterGold(currentOffer.baseCost)}
+                      className="w-full px-4 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-xs"
+                    >
+                      Match Asking Price ({currentOffer.baseCost} gold)
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="dialog-text text-gray-300 text-sm" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '575px' }}>
+                  <div className="text-base mb-1">No Trader Nearby</div>
+                  <p className="text-xs">
+                    Move around the map to find a trader. When you step on their
+                    tile, their current offer will appear here.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Center: Map */}
+          <div style={{ width: viewportWidth, flexShrink: 0, minWidth: 0 }}>
             <div
+              className="relative border-4 border-gray-600 overflow-hidden"
               style={{
-                position: 'absolute',
-                width: gameState.mapSize * TILE_SIZE,
-                height: gameState.mapSize * TILE_SIZE,
-                transform: `translate(${worldTranslateX}px, ${worldTranslateY}px)`,
-                transition: 'transform 0.2s ease',
+                width: viewportWidth,
+                height: viewportHeight,
+                backgroundColor: '#0b1120',
+                imageRendering: 'pixelated',
               }}
             >
-              {gameState.map.map((row, y) =>
-                row.map((tile, x) => {
-                  const isVisible = gameState.playerInstance.canSeeTile(x, y);
-                  return (
-                    <div
-                      key={`${x}-${y}`}
-                      style={{
-                        position: 'absolute',
-                        left: x * TILE_SIZE,
-                        top: y * TILE_SIZE,
-                        width: TILE_SIZE,
-                        height: TILE_SIZE,
-                        backgroundColor: isVisible
-                          ? tile.getTerrain().getColor()
-                          : '#1a1a1a',
-                        border: '1px solid rgba(0,0,0,0.1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '18px',
-                        opacity: isVisible ? 1 : 0.3,
-                      }}
-                    >
-                      {isVisible &&
-                        tile.getResource() &&
-                        tile.getResource()!.getIcon()}
-                    </div>
-                  );
-                }),
-              )}
-
               <div
                 style={{
                   position: 'absolute',
-                  left: gameState.player.x * TILE_SIZE,
-                  top: gameState.player.y * TILE_SIZE,
-                  width: TILE_SIZE,
-                  height: TILE_SIZE,
-                  backgroundColor: '#dcfce7',
-                  borderRadius: '4px',
-                  border: '2px solid #16a34a',
-                  transition: 'all 0.1s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '18px',
-                  zIndex: 10,
+                  width: gameState.mapSize * TILE_SIZE,
+                  height: gameState.mapSize * TILE_SIZE,
+                  transform: `translate(${worldTranslateX}px, ${worldTranslateY}px)`,
+                  transition: 'transform 0.2s ease',
                 }}
               >
-                🚶
-              </div>
-            </div>
+                {gameState.map.map((row, y) =>
+                  row.map((tile, x) => {
+                    const isVisible = gameState.playerInstance.canSeeTile(x, y);
+                    return (
+                      <div
+                        key={`${x}-${y}`}
+                        style={{
+                          position: 'absolute',
+                          left: x * TILE_SIZE,
+                          top: y * TILE_SIZE,
+                          width: TILE_SIZE,
+                          height: TILE_SIZE,
+                          backgroundColor: isVisible
+                            ? tile.getTerrain().getColor()
+                            : '#1a1a1a',
+                          border: '1px solid rgba(0,0,0,0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '18px',
+                          opacity: isVisible ? 1 : 0.3,
+                        }}
+                      >
+                        {isVisible &&
+                          tile.getResource() &&
+                          tile.getResource()!.getIcon()}
+                      </div>
+                    );
+                  }),
+                )}
 
-            {gameState.gameOver && (
-              <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-20">
-                <div className="overlay-card text-center">
-                  <div className="text-red-400 text-4xl font-bold mb-2">
-                    Game Over
-                  </div>
-                  <div className="text-white text-lg mb-3">
-                    You ran out of resources.
-                  </div>
-                  <div className="text-yellow-400 text-lg mb-4">
-                    Gold Collected: {gameState.resources.gold}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setDifficulty(null);
-                      setVisionType(null);
-                    }}
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold"
-                  >
-                    Back to Main Menu
-                  </button>
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: gameState.player.x * TILE_SIZE,
+                    top: gameState.player.y * TILE_SIZE,
+                    width: TILE_SIZE,
+                    height: TILE_SIZE,
+                    backgroundColor: '#dcfce7',
+                    borderRadius: '4px',
+                    border: '2px solid #16a34a',
+                    transition: 'all 0.1s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '18px',
+                    zIndex: 10,
+                  }}
+                >
+                  🚶
                 </div>
               </div>
-            )}
 
-            {gameState.gameWon && (
-              <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-20">
-                <div className="overlay-card text-center">
-                  <div className="text-green-400 text-4xl font-bold mb-2">
-                    Level {gameState.currentLevel} Complete!
-                  </div>
-                  <div className="text-white text-lg mb-2">
-                    You collected the trophy!
-                  </div>
-                  <div className="text-cyan-400 text-sm mb-2">
-                    Bonus: +10 Food, +10 Water, +5 Gold
-                  </div>
-                  <div className="text-yellow-400 text-sm mb-1">
-                    Gold: {gameState.resources.gold}
-                  </div>
-                  <div className="text-blue-400 text-sm mb-1">
-                    Food: {gameState.resources.food}
-                  </div>
-                  <div className="text-cyan-400 text-sm mb-4">
-                    Water: {gameState.resources.water}
-                  </div>
-                  <div className="flex gap-3 justify-center">
-                    <button
-                      onClick={nextLevel}
-                      className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold"
-                    >
-                      Next Level →
-                    </button>
+              {gameState.gameOver && (
+                <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-20">
+                  <div className="overlay-card text-center">
+                    <div className="text-red-400 text-4xl font-bold mb-2">
+                      Game Over
+                    </div>
+                    <div className="text-white text-lg mb-3">
+                      You ran out of resources.
+                    </div>
+                    <div className="text-yellow-400 text-lg mb-4">
+                      Gold Collected: {gameState.resources.gold}
+                    </div>
                     <button
                       onClick={() => {
                         setDifficulty(null);
@@ -1528,36 +1602,72 @@ const TileGame: React.FC = () => {
                       }}
                       className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold"
                     >
-                      Main Menu
+                      Back to Main Menu
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+
+              {gameState.gameWon && (
+                <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-20">
+                  <div className="overlay-card text-center">
+                    <div className="text-green-400 text-4xl font-bold mb-2">
+                      Level {gameState.currentLevel} Complete!
+                    </div>
+                    <div className="text-white text-lg mb-2">
+                      You collected the trophy!
+                    </div>
+                    <div className="text-cyan-400 text-sm mb-2">
+                      Bonus: +10 Food, +10 Water, +5 Gold
+                    </div>
+                    <div className="text-yellow-400 text-sm mb-1">
+                      Gold: {gameState.resources.gold}
+                    </div>
+                    <div className="text-blue-400 text-sm mb-1">
+                      Food: {gameState.resources.food}
+                    </div>
+                    <div className="text-cyan-400 text-sm mb-4">
+                      Water: {gameState.resources.water}
+                    </div>
+                    <div className="flex gap-3 justify-center">
+                      <button
+                        onClick={nextLevel}
+                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold"
+                      >
+                        Next Level →
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDifficulty(null);
+                          setVisionType(null);
+                        }}
+                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold"
+                      >
+                        Main Menu
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-		
-		{/* Terrain legend */}
-          <div
-            style={{
-              width: viewportWidth,
-              maxWidth: 480,
-              margin: '0 auto 16px auto',
-            }}
-          >
+
+          {/* Right side: Terrain legend and Move log */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: 320, flexShrink: 0, minWidth: 0 }}>
+            {/* Terrain legend */}
             <div
               className="overlay-card"
-              style={{ padding: '1rem 1.2rem', fontSize: '10px', textAlign: 'left' }}
+              style={{ padding: '0.75rem 1rem', fontSize: '9px', textAlign: 'left', width: '100%' }}
             >
-              <div style={{ fontSize: '0.8rem', marginBottom: 8 }}>
+              <div style={{ fontSize: '0.75rem', marginBottom: 6, fontWeight: 'bold' }}>
                 Terrain Legend (cost per move)
               </div>
 
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                  gap: '6px 16px',
+                  gridTemplateColumns: '1fr',
+                  gap: '4px',
                 }}
               >
                 {terrainLegend.map((terrain) => {
@@ -1572,21 +1682,22 @@ const TileGame: React.FC = () => {
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 8,
+                        gap: 6,
                       }}
                     >
                       <div
                         style={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: 4,
+                          width: 14,
+                          height: 14,
+                          borderRadius: 3,
                           backgroundColor: terrain.getColor(),
                           boxShadow: '0 0 0 2px rgba(0,0,0,0.6)',
+                          flexShrink: 0,
                         }}
                       />
-                      <div>
-                        <div>{label}</div>
-                        <div style={{ fontSize: '0.65rem', color: '#9ca3af' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.7rem' }}>{label}</div>
+                        <div style={{ fontSize: '0.6rem', color: '#9ca3af' }}>
                           {isWalkable
                             ? `Food ${cost.food} • Water ${cost.water}`
                             : 'Impassable'}
@@ -1595,173 +1706,37 @@ const TileGame: React.FC = () => {
                     </div>
                   );
                 })}
-				</div>
-            </div>
-        </div>
-
-        <div style={{ width: 416, margin: '0 auto' }}>
-          <div className="overlay-card trade-card text-center" style={{ width: '87%' }}>
-            {showTradeMenu && currentOffer ? (
-              <>
-                <div className="text-3xl mb-1">
-                  {traderType === 'regular' && '🧙 Regular Trader'}
-                  {traderType === 'impatient' && '⚡ Impatient Trader'}
-                  {traderType === 'generous' && '💝 Generous Trader'}
-                </div>
-                <div className="text-sm text-gray-400 mb-4 dialog-text">
-                  {traderType === 'regular' &&
-                    'A merchant with steady prices and a fair attitude. They leave after 5 bad counter-offers in a row!'}
-                  {traderType === 'impatient' &&
-                    'Offers are risky: too low and they will leave entirely. Rejecting their trades or making 3 bad counter-offers in a row will cause them to leave as well!'}
-                  {traderType === 'generous' &&
-                    'Kind-hearted, patient, and honest. They refuse to take more than they ask. However, they will leave after 7 bad counter-offers in a row!'}
-                </div>
-                <div className="offer-display mb-4">
-                  <div className="offer-line">
-                    They offer{' '}
-                    <span className="text-yellow-300 font-bold">
-                      {currentOffer.item === 'life'
-                        ? '+1 Life'
-                        : `+${currentOffer.amount} ${
-                            currentOffer.item === 'food' ? 'Food' : 'Water'
-                          }`}
-                    </span>
-                  </div>
-                  <div className="offer-line">
-                    Requested price:{' '}
-                    <span className="text-cyan-400 font-bold">
-                      {currentOffer.baseCost} gold
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-2 mb-4">
-                  <button
-                    onClick={() => {
-                      if (!game) return;
-                      const result = (game as any).acceptCurrentOffer
-                        ? (game as any).acceptCurrentOffer()
-                        : { error: 'Accept not available.' };
-                      setGameState(game.getGameState());
-                      if ('error' in result && result.error) {
-                        setTradeFeedback(result.error);
-                      } else if ('success' in result && result.success) {
-                        setTradeFeedback(result.message);
-                        const nextOffer =
-                          (result as { nextOffer?: TraderOffer }).nextOffer ||
-                          game.getActiveOffer();
-                        setCurrentOffer(nextOffer || null);
-                        setCounterGold(nextOffer ? nextOffer.baseCost : 0);
-                      }
-                    }}
-                    className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold"
-                  >
-                    Accept Trade
-                  </button>
-                  <button
-                    onClick={handleLeaveTrader}
-                    className="w-full px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm"
-                  >
-                    Reject Trade
-                  </button>
-                </div>
-
-                <div className="counter-section mb-4 text-center">
-                  <div className="text-sm text-gray-300 mb-2">
-                    Make Counter-Offer – choose how much gold to offer:
-                  </div>
-                  <div className="counter-controls justify-center">
-                    <button
-                      className="counter-btn"
-                      onClick={() =>
-                        setCounterGold((prev) => Math.max(1, prev - 1))
-                      }
-                    >
-                      −
-                    </button>
-                    <input
-                      className="counter-input"
-                      type="number"
-                      min={1}
-                      value={counterGold}
-                      onChange={(e) =>
-                        setCounterGold(
-                          Math.max(1, Number(e.target.value) || 1),
-                        )
-                      }
-                    />
-                    <button
-                      className="counter-btn"
-                      onClick={() => setCounterGold((prev) => prev + 1)}
-                    >
-                      +
-                    </button>
-                  </div>
-
-                </div>
-
-                {tradeFeedback && (
-                  <div className="trade-feedback mb-3">{tradeFeedback}</div>
-                )}
-
-                <div className="space-y-2">
-                  <button
-                    onClick={handleCounterOffer}
-                    className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold"
-                  >
-                    Submit Counter-Offer
-                  </button>
-                  <button
-                    onClick={() => setCounterGold(currentOffer.baseCost)}
-                    className="w-full px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm"
-                  >
-                    Match Asking Price ({currentOffer.baseCost} gold)
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="dialog-text text-gray-300">
-                <div className="text-lg mb-2">No Trader Nearby</div>
-                <p>
-                  Move around the map to find a trader. When you step on their
-                  tile, their current offer will appear here.
-                </p>
               </div>
-            )}
+            </div>
+
+            {/* Move log */}
+            <div
+              className="overlay-card"
+              style={{
+                fontSize: '9px',
+                height: Math.max(360, viewportHeight - 240),
+                overflowY: 'auto',
+                textAlign: 'left',
+                padding: '0.75rem 1rem',
+                width: '100%',
+              }}
+            >
+              <div style={{ fontSize: '0.75rem', marginBottom: 4, fontWeight: 'bold' }}>
+                Move Log
+              </div>
+              {moveLog.length === 0 ? (
+                <div className="text-gray-400" style={{ fontSize: '0.65rem' }}>
+                  Your recent moves will appear here.
+                </div>
+              ) : (
+                moveLog.map((line, idx) => (
+                  <div key={idx} style={{ fontSize: '0.65rem', marginBottom: 2 }}>{line}</div>
+                ))
+              )}
+            </div>
           </div>
         </div>
-      </div>
-	  
-	  {/* Move log panel at the bottom */}
-        <div
-          className="mt-4"
-          style={{ maxWidth: 900, margin: '32px auto 0 auto' }}
-        >
-          <div
-            className="overlay-card"
-            style={{
-              fontSize: '10px',
-              maxHeight: 120,
-              overflowY: 'auto',
-              textAlign: 'left',
-            }}
-          >
-            <div style={{ fontSize: '0.8rem', marginBottom: 4 }}>
-              Move Log
-            </div>
-            {moveLog.length === 0 ? (
-              <div className="text-gray-400">
-                Your recent moves will appear here.
-              </div>
-            ) : (
-              moveLog.map((line, idx) => (
-                <div key={idx}>{line}</div>
-              ))
-            )}
-          </div>
-        </div>
-	  
-        <div style={{ marginTop: '16px', textAlign: 'center' }}>
+        <div style={{ marginTop: '12px', textAlign: 'center' }}>
           <button
             onClick={() => {
               setDifficulty(null);
@@ -1773,6 +1748,7 @@ const TileGame: React.FC = () => {
           </button>
         </div>
       </div>
+    </div>
     </div>
   );
 };
