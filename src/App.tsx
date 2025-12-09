@@ -511,7 +511,7 @@ class GameMap {
   }
 }
 
-type VisionType = 'close' | 'normal' | 'far';
+type VisionType = 'focused' | 'cautious' | 'keen-eyed' | 'far-sight';
 type Difficulty = 'easy' | 'medium' | 'hard';
 
 type GameStateSnapshot = {
@@ -607,12 +607,14 @@ class Game {
 
   getVisionRadius() {
     const visionConfig: Record<VisionType, number> = {
-      close: 3,
-      normal: 5,
-      far: 8,
+      'focused': 3,   // small, tight view
+      'cautious': 4,  // a bit wider
+      'keen-eyed': 5, // balanced
+      'far-sight': 8, // biggest range
     };
     return visionConfig[this.visionType] ?? 5;
   }
+
 
   getDifficultyConfig() {
     const configs: Record<Difficulty, { size: number; food: number; water: number }> =
@@ -1055,7 +1057,7 @@ const TileGame: React.FC = () => {
   const nextLevel = () => {
     if (!game) return;
     const resources = game.getCurrentResources();
-    startGame(difficulty ?? 'easy', visionType ?? 'normal', resources);
+    startGame(difficulty ?? 'easy', visionType ?? 'keen-eyed', resources);
   };
 
   const handleMove = (dx: number, dy: number) => {
@@ -1237,28 +1239,37 @@ const TileGame: React.FC = () => {
                 style={{ maxWidth: 720, margin: '0 auto' }}
               >
                 <button
-                  onClick={() => startGame(difficulty, 'close')}
+                  onClick={() => startGame(difficulty, 'focused')}
                   className="px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xl font-bold transition"
                 >
-                  Close Vision
+                  Focused Vision
                   <div className="text-sm font-normal">3 Tile Radius</div>
-                  <div className="text-xs">More suspense</div>
+                  <div className="text-xs">Tight, tactical view</div>
                 </button>
 
                 <button
-                  onClick={() => startGame(difficulty, 'normal')}
+                  onClick={() => startGame(difficulty, 'cautious')}
+                  className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xl font-bold transition"
+                >
+                  Cautious Vision
+                  <div className="text-sm font-normal">4 Tile Radius</div>
+                  <div className="text-xs">Watch your flanks</div>
+                </button>
+
+                <button
+                  onClick={() => startGame(difficulty, 'keen-eyed')}
                   className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xl font-bold transition"
                 >
-                  Normal Vision
+                  Keen-Eyed Vision
                   <div className="text-sm font-normal">5 Tile Radius</div>
                   <div className="text-xs">Balanced visibility</div>
                 </button>
 
                 <button
-                  onClick={() => startGame(difficulty, 'far')}
+                  onClick={() => startGame(difficulty, 'far-sight')}
                   className="px-8 py-4 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-xl font-bold transition"
                 >
-                  Far Vision
+                  Far-Sight Vision
                   <div className="text-sm font-normal">8 Tile Radius</div>
                   <div className="text-xs">See danger early</div>
                 </button>
