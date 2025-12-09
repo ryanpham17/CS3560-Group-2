@@ -1,16 +1,19 @@
 package player;
 
-import game.Cell;
-import game.MapGrid;
-import util.Path;
+// Cautious vision: can see the square above, below, and to the east
+// of the player (plus the player's own square), matching the diagram.
+public class CautiousVision extends Vision {
 
-// Barebones skeleton that is currently not used to move as brain makes both vision and movement decision. 
-public class CautiousVision extends Vision 
-{
+    // (-1,0) north, (0,0) current, (1,0) south, (0,1) east
+    private static final int[][] OFFSETS = {
+            {-1, 0},
+            {0, 0},
+            {1, 0},
+            {0, 1}
+    };
 
     @Override
-    public Path closestFood(Player p, MapGrid map) {
-        // For example, look North, South, East only.
-        return new Path(0,1); // Move East as a placeholder
+    protected int[][] visibleOffsets() {
+        return OFFSETS;
     }
 }
