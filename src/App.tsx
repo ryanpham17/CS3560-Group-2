@@ -25,7 +25,6 @@ class GameObject {
     this.y = y;
   }
 }
-
 // ============================================
 // INHERITANCE & POLYMORPHISM: Terrain hierarchy
 // Different terrain types inherit from Terrain base class
@@ -514,6 +513,23 @@ class GameMap {
 type VisionType = 'focused' | 'cautious' | 'keen-eyed' | 'far-sight';
 type Difficulty = 'easy' | 'medium' | 'hard';
 
+type TargetType = 'spring' | 'animal' | 'gold' | 'trader' | 'trophy' | 'explore';
+
+type TargetInfo = {
+  type: TargetType;
+  x: number;
+  y: number;
+};
+
+type PathCompute = {
+  target: TargetInfo;
+  path: { x: number; y: number }[];
+  steps: number;
+  totalFood: number;
+  totalWater: number;
+  costScore: number;
+}
+
 type GameStateSnapshot = {
   map: Tile[][];
   player: { x: number; y: number };
@@ -525,6 +541,305 @@ type GameStateSnapshot = {
   playerInstance: Player;
   currentLevel: number;
 };
+// ============================================
+// ABSTRACTION: Vision Class
+// Allows player to see items and tiles. Computes optimal path using Dijkstra's Algorithm
+// ============================================
+class Vision {
+  visionType: VisionType;
+
+  constructor(visionType: VisionType) {
+    this.visionType = visionType;
+  }
+
+  static getRadiusFor(type: VisionType) {
+    const config: Record<VisionType, number> = {
+      focused: 3,
+      cautious: 4,
+      'keen-eyed': 5,
+      'far-sight': 8,
+    };
+    return config[type] ?? 5;
+  }
+
+  getRadius() {
+    return Vision.getRadiusFor(this.visionType);
+  }
+
+  getVisibleTargets(map: Tile[][], player: Player): TargetInfo[] {
+    const output: TargetInfo[] = [];
+
+    for (let y = 0;  y < map.length; y++) {
+      for (let x = 0; x < map[y].length; x++) {
+        if (!player.canSeeTile(x, y)) continue;
+
+        const res = map[y][x].getResource();
+        if (!res) continue;
+
+        const type = res.type as TargetType;
+        if (
+          type === 'spring' ||
+          type === 'animal' ||
+          type === 'gold' ||
+          type === 'trader' ||
+          type === 'trophy'
+        ) {
+          output.push({ type, x, y });
+        }
+      }
+    }
+    return output;
+  } // end getVisibleTargets
+
+  computeBestPaths(state: GameStateSnapshot): PathCompute[] {
+    const { map, playerInstance, player } = state;
+
+    const targets = this.getVisibleTargets(map, playerInstance);
+    const plans: PathCompute[] = [];
+
+    for (const t of targets) {
+      const plan = this.computePath(map, player, t);
+      if (plan) plans.push(plan);
+    }
+    // if no best path found
+    if (plans.length === 0) {
+      const explore = this.computeExplorePlan(map, player);
+      if (explore) plans.push(explore);
+    }
+
+    return plans;
+  }
+
+  // Setting weights for vision to choose optimal route
+  getWeights() {
+    switch (this.visionType) {
+      case 'focused':
+        return { stepW: 1.2, foodW: 1.0, waterW: 1.0 };
+      case 'cautious':
+        return { stepW: 0.8, foodW: 1.2, waterW: 1.2 };
+      case 'far-sight':
+        return { stepW: 1.0, foodW: 0.9, waterW: 0.9 };
+      default:
+        return { stepW: 1.0, foodW: 1.0, waterW: 1.0 };
+    }
+  }
+
+  computePath(
+    map: Tile[][],
+    start: { x: number; y: number },
+    target: TargetInfo,
+  ): PathCompute | null {
+    const result = this.getDijkstraPath(map, start, { x: target.x, y: target.y });
+    if (!result) return null;
+
+    const path = result.path;
+    const totalFood = result.totalFood;
+    const totalWater = result.totalWater;
+
+    const steps = Math.max(0, path.length - 1);
+
+    const { stepW, foodW, waterW } = this.getWeights();
+    const costScore = steps * stepW + totalFood * foodW + totalWater * waterW;
+
+    return {
+      target,
+      path,
+      steps,
+      totalFood,
+      totalWater,
+      costScore,
+    };
+  }
+
+  computeExplorePlan(
+    map: Tile[][],
+    start: { x: number; y: number },
+  ): PathCompute | null {
+    const candidates = [
+      { x: start.x + 1, y: start.y },
+      { x: start.x - 1, y: start.y },
+      { x: start.x, y: start.y + 1 },
+      { x: start.x, y: start.y - 1 },
+    ].filter(p => map[p.y]?.[p.x]?.isWalkable());
+
+    if (candidates.length === 0) return null;
+
+    let best = candidates[0];
+    let bestScore = Infinity;
+
+    for (const c of candidates) {
+      const cost = map[c.y][c.x].getMoveCost();
+      const score = cost.food + cost.water;
+      if (score < bestScore) {
+        bestScore = score;
+        best = c;
+      }
+    }
+
+    const cost = map[best.y][best.x].getMoveCost();
+    return {
+      target: { type: 'explore', x: best.x, y: best.y },
+      path: [start, best],
+      steps: 1,
+      totalFood: cost.food,
+      totalWater: cost.water,
+      costScore: bestScore,
+    };
+  }
+
+  getDijkstraPath (
+    map: Tile[][],
+    start: { x: number; y: number },
+    goal: { x: number; y: number },
+  ): { path: { x: number; y: number }[]; totalFood: number; totalWater: number } | null {
+    const h = map.length;
+    const w = map[0]?.length ?? 0;
+
+    const dist = Array.from({ length: h }, () => Array(w).fill(Infinity));
+    const prev = Array.from({ length: h }, () =>
+      Array(w).fill(null as null | { x: number; y: number }),
+    );
+
+    // track food/water
+    const foodCost = Array.from({ length: h }, () => Array(w).fill(Infinity));
+    const waterCost = Array.from({ length: h }, () => Array(w).fill(Infinity));
+
+    const inBounds = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h;
+
+    const pq: { x: number; y: number; d: number }[] = [];
+    dist[start.y][start.x] = 0;
+    foodCost[start.y][start.x] = 0;
+    waterCost[start.y][start.x] = 0;
+    pq.push({ x: start.x, y: start.y, d: 0 });
+
+    const dirs = [
+      { dx: 1, dy: 0 },
+      { dx: -1, dy: 0 },
+      { dx: 0, dy: 1 },
+      { dx: 0, dy: -1 },
+    ];
+
+    while (pq.length > 0) {
+      pq.sort((a, b) => a.d - b.d);
+      const cur = pq.shift()!;
+      if (cur.x === goal.x && cur.y === goal.y) break;
+
+      for (const dir of dirs) {
+        const nx = cur.x + dir.dx;
+        const ny = cur.y + dir.dy;
+        if (!inBounds(nx, ny)) continue;
+        if (!map[ny][nx].isWalkable()) continue;
+
+        const move = map[ny][nx].getMoveCost();
+        const nd = dist[cur.y][cur.x] + move.food + move.water;
+
+        if (nd < dist[ny][nx]) {
+          dist[ny][nx] = nd;
+          prev[ny][nx] = { x: cur.x, y: cur.y };
+          foodCost[ny][nx] = foodCost[cur.y][cur.x] + move.food;
+          waterCost[ny][nx] = waterCost[cur.y][cur.x] + move.water;
+          pq.push({ x: nx, y: ny, d: nd });
+        }
+      }
+    }
+
+    if (!isFinite(dist[goal.y]?.[goal.x])) return null;
+
+    // reconstruct
+    const path: { x: number; y: number }[] = [];
+    let cur: { x: number; y: number } | null = goal;
+    while (cur) {
+      path.push(cur);
+      cur = prev[cur.y][cur.x];
+    }
+    path.reverse();
+
+    return {
+      path,
+      totalFood: foodCost[goal.y][goal.x],
+      totalWater: waterCost[goal.y][goal.x],
+    };
+  }
+} // end vision class
+
+class Brain {
+  vision: Vision;
+
+  // hold last pos to avoid unnecessary backtracking (bouncing between 2 points)
+  lastAutoPos: { x: number; y: number } | null = null;
+
+  constructor(visionType: VisionType) {
+    this.vision = new Vision(visionType);
+  }
+
+  chooseMove(state: GameStateSnapshot): { dx: number; dy: number } | null {
+    const plans = this.vision.computeBestPaths(state);
+    if (plans.length === 0) return null;
+
+    let chosen = this.pickPlan(plans, state.resources);
+    if (!chosen || chosen.path.length < 2) return null;
+
+    const next = chosen.path[1];
+
+     if (
+      this.lastAutoPos &&
+      next.x === this.lastAutoPos.x &&
+      next.y === this.lastAutoPos.y
+    ) {
+
+      const sorted = plans.slice().sort((a, b) => a.costScore - b.costScore);
+      const alt =
+        sorted.find(p => {
+          if (!p.path || p.path.length < 2) return false;
+          const n = p.path[1];
+          return !(n.x === this.lastAutoPos!.x && n.y === this.lastAutoPos!.y);
+        }) ?? chosen;
+
+      chosen = alt;
+    }
+
+    if (!chosen || chosen.path.length < 2) return null;
+
+    const finalNext = chosen.path[1];
+
+    this.lastAutoPos = { x: state.player.x, y: state.player.y };
+
+    return { dx: finalNext.x - state.player.x, dy: finalNext.y - state.player.y };
+  }
+
+  // pick path based on priorities
+  pickPlan(plans: PathCompute[], res: PlayerResources): PathCompute | null {
+    const trophyPlans = plans.filter(p => p.target.type === 'trophy');
+    if (trophyPlans.length) {
+      trophyPlans.sort((a, b) => a.costScore - b.costScore);
+      return trophyPlans[0];
+    }
+
+    // if low on food/water prioritize survival
+    const lowFood = res.food < 15;
+    const lowWater = res.water < 15;
+
+    if (lowWater) {
+      const springs = plans.filter(p => p.target.type === 'spring');
+      if (springs.length) {
+        springs.sort((a, b) => a.costScore - b.costScore);
+        return springs[0];
+      }
+    }
+
+    if (lowFood) {
+      const animals = plans.filter(p => p.target.type === 'animal');
+      if (animals.length) {
+        animals.sort((a, b) => a.costScore - b.costScore);
+        return animals[0];
+      }
+    }
+
+    
+    const sorted = [...plans].sort((a, b) => a.costScore - b.costScore);
+    return sorted[0] ?? null;
+  }
+}
 
 // ============================================
 // ABSTRACTION: Game class - Main controller
@@ -542,6 +857,7 @@ class Game {
   traderTile: Tile | null;
   activeTrader: TraderResource | null;
   activeOffer: TraderOffer | null;
+  brain: Brain;
 
   constructor(
     difficulty: Difficulty,
@@ -550,6 +866,7 @@ class Game {
   ) {
     this.difficulty = difficulty;
     this.visionType = visionType;
+    this.brain = new Brain(visionType);
     this.currentLevel = startingResources ? startingResources.level : 1;
     this.currentTurn = 0;
     this.gameOver = false;
@@ -577,7 +894,6 @@ class Game {
         startingResources.lives,
       );
     } else {
-      // Start fresh
       this.player = new Player(1, 1, config.food, config.water, 0, visionRadius, 3);
     }
 
@@ -922,6 +1238,10 @@ class Game {
     };
   }
 
+  autoRun() { // if a trader spawns in the top left corner at the same time as the player, autorun does not work
+    return this.brain.chooseMove(this.getGameState());
+  }
+
   getCurrentResources() {
     const resources = this.player.getResources();
     return {
@@ -949,6 +1269,17 @@ class Game {
     this.traderTile = null;
     this.activeTrader = null;
     this.activeOffer = null;
+  }
+
+  skipTraderAuto() {
+    if (!this.traderTile || !this.activeTrader) {
+      return;
+    }
+
+    // Remove the trader from that tile
+    this.traderTile.removeResource();
+
+    this.leaveTrader();
   }
 
   // Handle when the player explicitly rejects the current trader's offer
@@ -1034,12 +1365,15 @@ const TileGame: React.FC = () => {
   const [counterGold, setCounterGold] = useState(0);
   const [tradeFeedback, setTradeFeedback] = useState('');
   const [moveLog, setMoveLog] = useState<string[]>([]);
+  const [autoRun, setAutoRun] = useState(false);
 
   const startGame = (
     diff: Difficulty,
     vision: VisionType,
     resources: (PlayerResources & { level: number }) | null = null,
   ) => {
+    setAutoRun(false);
+
     const newGame = new Game(diff, vision, resources);
     setGame(newGame);
     setGameState(newGame.getGameState());
@@ -1056,6 +1390,7 @@ const TileGame: React.FC = () => {
 
   const nextLevel = () => {
     if (!game) return;
+    setAutoRun(false);
     const resources = game.getCurrentResources();
     startGame(difficulty ?? 'easy', visionType ?? 'keen-eyed', resources);
   };
@@ -1100,6 +1435,46 @@ const TileGame: React.FC = () => {
 	setMoveLog(prev => [entry, ...prev].slice(0, 20)); // keep last 20 moves
   };
 
+  const handleAutoMove = () => {
+    if (!game) return;
+
+  
+    const step = game.autoRun?.();
+    if (!step) {
+      setMessage('No valid auto-move found.');
+      return;
+    }
+
+    handleMove(step.dx, step.dy);
+  };
+
+  useEffect(() => {
+  if (!autoRun) return;
+
+  // Stop auto-run if the game is not in a valid state
+  if (!game || !gameState) return;
+
+  // Don't auto-run during trade, or after game ends
+  if (showTradeMenu || gameState.gameOver || gameState.gameWon) return;
+
+  const id = window.setInterval(() => {
+    if (!game) return;
+    const latest = game.getGameState();
+    if (latest.gameOver || latest.gameWon) {
+      setAutoRun(false);
+      return;
+    }
+    if (showTradeMenu) {
+      setAutoRun(false);
+      return;
+    }
+
+    handleAutoMove();
+  }, 500); 
+
+  return () => window.clearInterval(id);
+}, [autoRun, game, gameState, showTradeMenu]);
+
   const handleCounterOffer = () => {
     if (!game || !currentOffer) return;
     const result = game.submitCounterOffer(counterGold);
@@ -1118,10 +1493,16 @@ const TileGame: React.FC = () => {
       setCounterGold(nextOffer ? nextOffer.baseCost : 0);
     }
   };
+
   const handleLeaveTrader = () => {
-    if (game) {
+    if (!game) return;
+
+    if (autoRun) {
+      game.skipTraderAuto();
+    } else {
       game.rejectCurrentTrade();
     }
+
     setShowTradeMenu(false);
     setTraderType(null);
     setCurrentOffer(null);
@@ -1229,7 +1610,6 @@ const TileGame: React.FC = () => {
                   <div className="text-xs">Scarce resources</div>
                 </button>
               </div>
-              {/* Tip removed for a cleaner, more game-like start screen */}
             </>
           ) : (
             <>
@@ -1249,7 +1629,7 @@ const TileGame: React.FC = () => {
 
                 <button
                   onClick={() => startGame(difficulty, 'cautious')}
-                  className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xl font-bold transition"
+                  className="px-8 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xl font-bold transition"
                 >
                   Cautious Vision
                   <div className="text-sm font-normal">4 Tile Radius</div>
@@ -1747,9 +2127,28 @@ const TileGame: React.FC = () => {
             </div>
           </div>
         </div>
-        <div style={{ marginTop: '12px', textAlign: 'center' }}>
+         <div
+
+         //autorun 
+
+            style={{
+            marginTop: '12px',
+            textAlign: 'center',
+            display: 'flex',
+            gap: '8px',
+            justifyContent: 'center',
+          }}
+        >
+          <button
+            onClick={() => setAutoRun(prev => !prev)}
+            disabled={!game || showTradeMenu || gameState.gameOver || gameState.gameWon}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-900 text-white rounded text-sm"
+          >
+            {autoRun ? 'Stop Auto Run' : 'Start Auto Run'}
+          </button>
           <button
             onClick={() => {
+              setAutoRun(false);
               setDifficulty(null);
               setVisionType(null);
             }}
@@ -1760,7 +2159,7 @@ const TileGame: React.FC = () => {
         </div>
       </div>
     </div>
-    </div>
+  </div>
   );
 };
 
