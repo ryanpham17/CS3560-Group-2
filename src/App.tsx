@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AutoPlayControls } from '/home/kai/CS3560-Group-2/src/autoplay.tsx';
 
-// ============================================
-// ABSTRACTION: Base GameObject class
-// Abstract base class that all game entities inherit from
-// ============================================
 class GameObject {
   x: number;
   y: number;
@@ -27,11 +23,7 @@ class GameObject {
   }
 }
 
-// ============================================
-// INHERITANCE & POLYMORPHISM: Terrain hierarchy
-// Different terrain types inherit from Terrain base class
-// ============================================
-class Terrain {
+export class Terrain {
   name: string;
   color: string;
 
@@ -40,7 +32,6 @@ class Terrain {
     this.color = color;
   }
 
-  // POLYMORPHISM: Each terrain overrides this method
   getCost(): { food: number; water: number } {
     throw new Error("getCost() must be implemented by subclass");
   }
@@ -54,7 +45,6 @@ class Terrain {
   }
 }
 
-// INHERITANCE: Specific terrain types inherit from Terrain
 class GrassTerrain extends Terrain {
   constructor() {
     super('grass', '#7cb342');
@@ -71,7 +61,7 @@ class DesertTerrain extends Terrain {
   }
 
   getCost() {
-    return { food: 1, water: 3 }; // POLYMORPHISM: Different implementation
+    return { food: 1, water: 3 };
   }
 }
 
@@ -81,7 +71,7 @@ class ForestTerrain extends Terrain {
   }
 
   getCost() {
-    return { food: 2, water: 1 }; // POLYMORPHISM: Different implementation
+    return { food: 2, water: 1 };
   }
 }
 
@@ -91,7 +81,7 @@ class MountainTerrain extends Terrain {
   }
 
   getCost() {
-    return { food: 3, water: 2 }; // POLYMORPHISM: Different implementation
+    return { food: 3, water: 2 };
   }
 }
 
@@ -101,7 +91,7 @@ class SwampTerrain extends Terrain {
   }
 
   getCost() {
-    return { food: 2, water: 2 }; // POLYMORPHISM: Different implementation
+    return { food: 2, water: 2 };
   }
 }
 
@@ -115,15 +105,11 @@ class WallTerrain extends Terrain {
   }
 
   isWalkable() {
-    return false; // POLYMORPHISM: Walls override walkability
+    return false;
   }
 }
 
-// ============================================
-// INHERITANCE & POLYMORPHISM: Resource hierarchy
-// Different resources inherit from Resource base class
-// ============================================
-class Resource {
+export class Resource {
   type: string;
   icon: string;
 
@@ -136,8 +122,6 @@ class Resource {
     return this.icon;
   }
 
-  // POLYMORPHISM: Each resource type provides different bonuses
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   applyEffect(_playerResources: PlayerResources): PlayerResources {
     throw new Error("applyEffect() must be implemented by subclass");
   }
@@ -161,7 +145,6 @@ type TraderOffer = {
   baseCost: number;
 };
 
-// INHERITANCE: Specific resource types
 class SpringResource extends Resource {
   constructor() {
     super('spring', '💧');
@@ -219,7 +202,7 @@ class TrophyResource extends Resource {
   }
 
   applyEffect(playerResources: PlayerResources): PlayerResources {
-    return playerResources; // Trophy doesn't change resources
+    return playerResources;
   }
 
   getMessage() {
@@ -230,7 +213,7 @@ class TrophyResource extends Resource {
 class TraderResource extends Resource {
   traderType: 'regular' | 'impatient' | 'generous';
   state: 'idle' | 'awaitOffer' | 'unavailable';
-  counterOfferCount: number; // counts failed counter-offer attempts
+  counterOfferCount: number;
   unavailableUntilTurn: number;
 
   constructor(traderType: 'regular' | 'impatient' | 'generous' = 'regular') {
@@ -242,7 +225,7 @@ class TraderResource extends Resource {
   }
 
   applyEffect(playerResources: PlayerResources): PlayerResources {
-    return playerResources; // Trader interaction handled separately
+    return playerResources;
   }
 
   getMessage() {
@@ -291,11 +274,7 @@ class TraderResource extends Resource {
   }
 }
 
-// ============================================
-// HIERARCHY: Tile contains Terrain and Resource
-// Composition pattern - Tile "has-a" Terrain and "has-a" Resource
-// ============================================
-class Tile {
+export class Tile {
   terrain: Terrain;
   resource: Resource | null;
 
@@ -325,9 +304,6 @@ class Tile {
   }
 }
 
-// ============================================
-// INHERITANCE: Player inherits from GameObject
-// ============================================
 class Player extends GameObject {
   food: number;
   water: number;
@@ -385,7 +361,6 @@ class Player extends GameObject {
     return this.visionRadius;
   }
 
-  // Check if a tile is within player's vision (circular radius)
   canSeeTile(tileX: number, tileY: number) {
     const dx = tileX - this.x;
     const dy = tileY - this.y;
@@ -406,10 +381,6 @@ class Player extends GameObject {
   }
 }
 
-// ============================================
-// ABSTRACTION & HIERARCHY: GameMap manages Tiles
-// Encapsulates map generation and tile management
-// ============================================
 class GameMap {
   size: number;
   difficulty: 'easy' | 'medium' | 'hard';
@@ -420,7 +391,6 @@ class GameMap {
   constructor(size: number, difficulty: 'easy' | 'medium' | 'hard') {
     this.size = size;
     this.difficulty = difficulty;
-    // Place the trophy on a random walkable tile inside the map borders
     this.trophyX = 1 + Math.floor(Math.random() * (this.size - 2 - 1 + 1));
     this.trophyY = 1 + Math.floor(Math.random() * (this.size - 2 - 1 + 1));
     this.tiles = this.generateMap();
@@ -448,7 +418,6 @@ class GameMap {
     return x === 0 || y === 0 || x === this.size - 1 || y === this.size - 1;
   }
 
-  // Factory method pattern - creates terrain instances
   createRandomTerrain() {
     const rand = Math.random();
     if (rand < 0.4) return new GrassTerrain();
@@ -458,27 +427,18 @@ class GameMap {
     return new SwampTerrain();
   }
 
-  // Factory method pattern - creates resource instances
   createResourceForTile(
     x: number,
     y: number,
     difficulty: 'easy' | 'medium' | 'hard',
   ): Resource | null {
-    // Single trophy placed at a random interior tile chosen when the map is created
     if (x === this.trophyX && y === this.trophyY) {
       return new TrophyResource();
     }
 
-    // Difficulty affects spawn rates (further reduced to keep the world sparse)
-    const rates: Record<
-      'easy' | 'medium' | 'hard',
-      { trader: number; spring: number; animal: number; gold: number }
-    > = {
-      // Easy: still relatively generous, but with noticeably fewer resources
+    const rates = {
       easy: { trader: 0.02, spring: 0.05, animal: 0.06, gold: 0.06 },
-      // Medium: leaner map, players must plan routes
       medium: { trader: 0.015, spring: 0.035, animal: 0.045, gold: 0.045 },
-      // Hard: very sparse resources, focused on survival
       hard: { trader: 0.01, spring: 0.025, animal: 0.035, gold: 0.035 },
     };
 
@@ -486,7 +446,6 @@ class GameMap {
     const rand = Math.random();
 
     if (rand < rate.trader) {
-      // Random trader type
       const traderRand = Math.random();
       if (traderRand < 0.33) return new TraderResource('regular');
       if (traderRand < 0.66) return new TraderResource('impatient');
@@ -515,7 +474,6 @@ class GameMap {
 type VisionType = 'focused' | 'cautious' | 'keen-eyed' | 'far-sight';
 type Difficulty = 'easy' | 'medium' | 'hard';
 
-
 type GameStateSnapshot = {
   map: Tile[][];
   player: { x: number; y: number };
@@ -528,10 +486,6 @@ type GameStateSnapshot = {
   currentLevel: number;
 };
 
-// ============================================
-// ABSTRACTION: Game class - Main controller
-// Encapsulates all game logic and coordinates between objects
-// ============================================
 class Game {
   difficulty: Difficulty;
   visionType: VisionType;
@@ -568,7 +522,6 @@ class Game {
     this.map = new GameMap(config.size, this.difficulty);
 
     if (startingResources) {
-      // Continue with saved resources
       this.player = new Player(
         1,
         1,
@@ -579,7 +532,6 @@ class Game {
         startingResources.lives,
       );
     } else {
-      // Start fresh
       this.player = new Player(1, 1, config.food, config.water, 0, visionRadius, 3);
     }
 
@@ -602,21 +554,18 @@ class Game {
     if (traderType === 'generous') {
       offer.baseCost = Math.max(3, Math.round(offer.baseCost * 0.85));
     }
-    // Impatient traders now use the same baseCost; their behavior is handled
-    // purely by acceptance probability in the trading logic.
     return offer;
   }
 
   getVisionRadius() {
     const visionConfig: Record<VisionType, number> = {
-      'focused': 3,   // small, tight view
-      'cautious': 4,  // a bit wider
-      'keen-eyed': 5, // balanced
-      'far-sight': 8, // biggest range
+      'focused': 3,
+      'cautious': 4,
+      'keen-eyed': 5,
+      'far-sight': 8,
     };
     return visionConfig[this.visionType] ?? 5;
   }
-
 
   getDifficultyConfig() {
     const configs: Record<Difficulty, { size: number; food: number; water: number }> =
@@ -640,9 +589,6 @@ class Game {
     const cost = tile.getMoveCost();
 
     if (!this.player.hasEnoughResources(cost.food, cost.water)) {
-      // If you don't have enough resources to move, you always lose a life
-      // and gain +5 food / +5 water. The game only ends when you are at 0 lives
-      // AND cannot pay the movement cost.
       if (this.player.getLives() > 0) {
         this.player.loseLife();
         this.player.food += 5;
@@ -654,7 +600,6 @@ class Game {
         };
       }
 
-      // Reaching this branch means you already have 0 lives and still can't move.
       this.gameOver = true;
       return { gameOver: true, message: 'Game Over! No lives or resources remaining!' };
     }
@@ -697,7 +642,6 @@ class Game {
         };
       }
 
-      // Difficulty-scaled resource collection for food and water
       if (resource.type === 'spring') {
         const waterByDifficulty: Record<Difficulty, number> = {
           easy: 20,
@@ -728,7 +672,6 @@ class Game {
         };
       }
 
-      // Other resources (gold, traders, etc.) use their own logic
       this.player.collectResource(resource);
       tile.removeResource();
 
@@ -755,9 +698,8 @@ class Game {
     const traderType = trader.getTraderType();
     const { item, amount, baseCost } = this.activeOffer;
 
-    const priceDiff = baseCost - counterGold; // positive if player offers less
+    const priceDiff = baseCost - counterGold;
 
-    // Helper to complete a successful trade
     const completeTrade = (goldToPay: number) => {
       this.player.gold -= goldToPay;
       if (item === 'food') this.player.food += amount;
@@ -774,7 +716,6 @@ class Game {
 
       const message = `Trade accepted! You ${rewardLabel} for ${goldToPay} gold.`;
 
-      // After a successful trade, generate a fresh offer
       this.activeOffer = this.generateTraderOffer(traderType);
 
       return {
@@ -784,10 +725,8 @@ class Game {
       };
     };
 
-    // Generous traders
     if (traderType === 'generous') {
       if (counterGold > baseCost) {
-        // They refuse to overcharge you
         return {
           error: `The generous trader stops you. They don't want to scam you and only want ${baseCost} gold.`,
         };
@@ -797,8 +736,6 @@ class Game {
         return completeTrade(counterGold);
       }
 
-      // Offer less than asking price → success rate reduced by 15% per gold below asking.
-      // Example: asking 10, offer 8 → 2 gold below → 70% success chance.
       const generousPriceDiff = Math.max(0, baseCost - counterGold);
       const successRate = Math.max(0, 1 - 0.15 * generousPriceDiff);
       const accepted = Math.random() < successRate;
@@ -825,15 +762,12 @@ class Game {
       return completeTrade(counterGold);
     }
 
-    // Impatient traders
     if (traderType === 'impatient') {
       if (counterGold > baseCost) {
-        // Instantly accept any offer above their asking price
         return completeTrade(counterGold);
       }
 
       if (priceDiff >= 4) {
-        // Offer 4 or more gold below their price → instant leave
         trader.setState('unavailable');
         if (this.traderTile) {
           this.traderTile.removeResource();
@@ -846,7 +780,6 @@ class Game {
         };
       }
 
-      // 0–3 gold below asking price → success rate decreases by 25% per gold
       const successRate = Math.max(0, 1 - 0.25 * Math.max(0, priceDiff));
       const accepted = Math.random() < successRate;
 
@@ -874,14 +807,10 @@ class Game {
       return completeTrade(counterGold);
     }
 
-    // Regular traders
     if (counterGold >= baseCost) {
-      // Always accept offers that meet or exceed asking price
       return completeTrade(counterGold);
     }
 
-    // Lower than asking price → success chance reduced by 20% per gold below asking
-    // Example: asking 10, offer 6 → 4 gold below → 20% success chance
     const regularPriceDiff = Math.max(0, baseCost - counterGold);
     const successRate = Math.max(0, 1 - 0.2 * regularPriceDiff);
     const accepted = Math.random() < successRate;
@@ -953,7 +882,6 @@ class Game {
     this.activeOffer = null;
   }
 
-  // Handle when the player explicitly rejects the current trader's offer
   rejectCurrentTrade() {
     if (!this.activeTrader) {
       return;
@@ -961,7 +889,6 @@ class Game {
 
     const traderType = this.activeTrader.getTraderType();
 
-    // Impatient traders immediately leave the map for this level if you reject their offer
     if (traderType === 'impatient') {
       this.activeTrader.setState('unavailable');
       if (this.traderTile) {
@@ -972,7 +899,6 @@ class Game {
     this.leaveTrader();
   }
 
-  // Accept the current offer at the trader's asking price (no randomness)
   acceptCurrentOffer() {
     if (!this.traderTile || !this.activeTrader || !this.activeOffer) {
       return { error: 'No trader nearby!' };
@@ -1010,9 +936,6 @@ class Game {
   }
 }
 
-// ============================================
-// React Component (View Layer)
-// ============================================
 const TileGame: React.FC = () => {
   const TILE_SIZE = 32;
   
@@ -1066,16 +989,13 @@ const TileGame: React.FC = () => {
   const handleMove = (dx: number, dy: number) => {
     if (!game) return;
 	
-	// snapshot BEFORE move
 	const before = game.getGameState();
 
 	const result = game.attemptMove(dx, dy);
 
-    // snapshot AFTER move
 	const after = game.getGameState();
 	setGameState(after);
 	
-    //const result = game.attemptMove(dx, dy);
     setGameState(game.getGameState());
     if (result && 'trader' in result && result.trader) {
       setShowTradeMenu(true);
@@ -1100,7 +1020,7 @@ const TileGame: React.FC = () => {
 	const msg = (result as any)?.message ?? '';
 	const entry = `Move (${dx}, ${dy})  from (${before.player.x},${before.player.y}) to (${after.player.x},${after.player.y})  |  Food ${before.resources.food}→${after.resources.food}, Water ${before.resources.water}→${after.resources.water}, Gold ${before.resources.gold}→${after.resources.gold}${msg ? '  |  ' + msg : ''}`;
 
-	setMoveLog(prev => [entry, ...prev].slice(0, 20)); // keep last 20 moves
+	setMoveLog(prev => [entry, ...prev].slice(0, 20));
   };
 
   const handleCounterOffer = () => {
@@ -1147,7 +1067,6 @@ const TileGame: React.FC = () => {
               handleLeaveTrader();
               break;
             case 'Enter':
-              // Enter submits the current counter-offer while in trade view
               handleCounterOffer();
               break;
           }
@@ -1232,7 +1151,6 @@ const TileGame: React.FC = () => {
                   <div className="text-xs">Scarce resources</div>
                 </button>
               </div>
-              {/* Tip removed for a cleaner, more game-like start screen */}
             </>
           ) : (
             <>
@@ -1292,9 +1210,6 @@ const TileGame: React.FC = () => {
     );
   }
 
-  // Camera clamping so the map never scrolls beyond its borders.
-  // If the map is smaller than the base viewport (e.g. Easy), the
-  // viewport shrinks to exactly fit the map so you never see beyond walls.
   const BASE_VIEWPORT_WIDTH = 416;
   const BASE_VIEWPORT_HEIGHT = 320;
   let viewportWidth = BASE_VIEWPORT_WIDTH;
@@ -1308,8 +1223,6 @@ const TileGame: React.FC = () => {
     viewportWidth = Math.min(BASE_VIEWPORT_WIDTH, worldWidth);
     viewportHeight = Math.min(BASE_VIEWPORT_HEIGHT, worldHeight);
 
-    // If the world is bigger than the viewport on an axis, clamp movement;
-    // otherwise keep it fixed (no scrolling) on that axis.
     const desiredTx = -gameState.player.x * TILE_SIZE + viewportWidth / 2;
     if (worldWidth > viewportWidth) {
       const minTx = Math.min(0, viewportWidth - worldWidth);
@@ -1392,7 +1305,6 @@ const TileGame: React.FC = () => {
         }}
       >
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'nowrap', maxWidth: '100%', overflow: 'hidden', paddingLeft: '20px', paddingRight: '20px' }}>
-          {/* Left side: Trade menu */}
           <div style={{ width: 320, flexShrink: 0, minWidth: 0 }}>
             <div className="overlay-card trade-card text-center" style={{ width: '81%', minHeight: '575px' }}>
               {showTradeMenu && currentOffer ? (
@@ -1524,7 +1436,6 @@ const TileGame: React.FC = () => {
             </div>
           </div>
 
-          {/* Center: Map */}
           <div style={{ width: viewportWidth, flexShrink: 0, minWidth: 0 }}>
             <div
               className="relative border-4 border-gray-600 overflow-hidden"
@@ -1666,9 +1577,7 @@ const TileGame: React.FC = () => {
             </div>
           </div>
 
-          {/* Right side: Terrain legend and Move log */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: 320, flexShrink: 0, minWidth: 0 }}>
-            {/* Terrain legend */}
             <div
               className="overlay-card"
               style={{ padding: '0.75rem 1rem', fontSize: '9px', textAlign: 'left', width: '100%' }}
@@ -1732,7 +1641,6 @@ const TileGame: React.FC = () => {
               />
             )}
 
-            {/* Move log */}
             <div
               className="overlay-card"
               style={{

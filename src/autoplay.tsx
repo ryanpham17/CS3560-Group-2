@@ -7,7 +7,7 @@ interface AutoPlayControlsProps {
   disabled?: boolean;
 }
 
-type BrainPersonality = 'survivalist' | 'explorer';
+type BrainPersonality = 'survivalist' | 'cautious' | 'balanced' | 'aggressive' | 'explorer';
 
 export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({ 
   game, 
@@ -104,32 +104,68 @@ export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({
         </div>
         
         <div className="mb-3">
-          <div className="text-xs text-gray-300 mb-1">Select Brain Type:</div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setSelectedPersonality('survivalist')}
-              className={`flex-1 px-2 py-1.5 rounded text-xs font-bold ${
-                selectedPersonality === 'survivalist'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-              disabled={disabled}
-            >
-              Survivalist
-            </button>
-            <button
-              onClick={() => setSelectedPersonality('explorer')}
-              className={`flex-1 px-2 py-1.5 rounded text-xs font-bold ${
-                selectedPersonality === 'explorer'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-              disabled={disabled}
-            >
-              Explorer
-            </button>
-          </div>
-        </div>
+  <div className="text-xs text-gray-300 mb-1">Select Brain Type:</div>
+  <div className="grid grid-cols-3 gap-1">
+    {/* Row 1 */}
+    <button
+      onClick={() => setSelectedPersonality('survivalist')}
+      className={`px-2 py-1.5 rounded text-xs font-bold ${
+        selectedPersonality === 'survivalist'
+          ? 'bg-green-600 text-white'
+          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+      }`}
+      disabled={disabled}
+    >
+      Survivalist
+    </button>
+    <button
+      onClick={() => setSelectedPersonality('cautious')}
+      className={`px-2 py-1.5 rounded text-xs font-bold ${
+        selectedPersonality === 'cautious'
+          ? 'bg-yellow-600 text-white'
+          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+      }`}
+      disabled={disabled}
+    >
+      Cautious
+    </button>
+    <button
+      onClick={() => setSelectedPersonality('balanced')}
+      className={`px-2 py-1.5 rounded text-xs font-bold ${
+        selectedPersonality === 'balanced'
+          ? 'bg-purple-600 text-white'
+          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+      }`}
+      disabled={disabled}
+    >
+      Balanced
+    </button>
+    
+ 
+    <button
+      onClick={() => setSelectedPersonality('aggressive')}
+      className={`px-2 py-1.5 rounded text-xs font-bold col-span-2 ${
+        selectedPersonality === 'aggressive'
+          ? 'bg-red-600 text-white'
+          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+      }`}
+      disabled={disabled}
+    >
+      Aggressive
+    </button>
+    <button
+      onClick={() => setSelectedPersonality('explorer')}
+      className={`px-2 py-1.5 rounded text-xs font-bold ${
+        selectedPersonality === 'explorer'
+          ? 'bg-blue-600 text-white'
+          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+      }`}
+      disabled={disabled}
+    >
+      Explorer
+    </button>
+  </div>
+</div>
         
         {disabled && (
           <div className="text-yellow-400 text-xs mb-2 p-1 bg-yellow-900 rounded">
