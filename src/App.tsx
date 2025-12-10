@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AutoPlayControls } from '/home/kai/CS3560-Group-2/src/autoplay.tsx';
 
 // ============================================
 // ABSTRACTION: Base GameObject class
@@ -513,6 +514,7 @@ class GameMap {
 
 type VisionType = 'focused' | 'cautious' | 'keen-eyed' | 'far-sight';
 type Difficulty = 'easy' | 'medium' | 'hard';
+
 
 type GameStateSnapshot = {
   map: Tile[][];
@@ -1034,6 +1036,7 @@ const TileGame: React.FC = () => {
   const [counterGold, setCounterGold] = useState(0);
   const [tradeFeedback, setTradeFeedback] = useState('');
   const [moveLog, setMoveLog] = useState<string[]>([]);
+ 
 
   const startGame = (
     diff: Difficulty,
@@ -1719,6 +1722,15 @@ const TileGame: React.FC = () => {
                 })}
               </div>
             </div>
+
+              
+            {game && (
+              <AutoPlayControls
+                game={game}
+                onMove={() => setGameState(game.getGameState())}
+                disabled={showTradeMenu}
+              />
+            )}
 
             {/* Move log */}
             <div

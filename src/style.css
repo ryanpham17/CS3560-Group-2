@@ -443,3 +443,59 @@ button:focus-visible {
   border: 1px solid rgba(234, 179, 8, 0.4);
   color: #fcd34d;
 }
+
+
+.auto-play-panel {
+  background: rgba(15, 23, 42, 0.9);
+  border: 2px solid #374151;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.log-container {
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 0.25rem;
+  padding: 0.5rem;
+  max-height: 120px;
+  overflow-y: auto;
+  border: 1px solid #374151;
+}
+
+.log-content {
+  font-family: 'Courier New', monospace;
+  font-size: 0.65rem;
+}
+
+.log-entry {
+  border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+  padding: 0.2rem 0;
+  line-height: 1.2;
+}
+
+/* Style the range input */
+input[type="range"] {
+  -webkit-appearance: none;
+  height: 6px;
+  background: #374151;
+  border-radius: 3px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+}
+
+input[type="range"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input[type="range"]:disabled::-webkit-slider-thumb {
+  background: #6b7280;
+}
