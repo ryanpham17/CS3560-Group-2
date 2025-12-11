@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AutoPlayControls } from '/home/kai/CS3560-Group-2/src/autoplay.tsx';
+import { AutoPlayControls } from './autoplay';
 
 class GameObject {
   x: number;
@@ -1165,16 +1165,16 @@ const TileGame: React.FC = () => {
                 >
                   Focused Vision
                   <div className="text-sm font-normal">3 Tile Radius</div>
-                  <div className="text-xs">Tight, tactical view</div>
+                  <div className="text-xs">Limited visibility</div>
                 </button>
 
                 <button
                   onClick={() => startGame(difficulty, 'cautious')}
-                  className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xl font-bold transition"
+                  className="px-8 py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xl font-bold transition"
                 >
                   Cautious Vision
                   <div className="text-sm font-normal">4 Tile Radius</div>
-                  <div className="text-xs">Watch your flanks</div>
+                  <div className="text-xs">Moderate visibility</div>
                 </button>
 
                 <button
@@ -1183,7 +1183,7 @@ const TileGame: React.FC = () => {
                 >
                   Keen-Eyed Vision
                   <div className="text-sm font-normal">5 Tile Radius</div>
-                  <div className="text-xs">Balanced visibility</div>
+                  <div className="text-xs">Standard visibility</div>
                 </button>
 
                 <button
@@ -1192,7 +1192,7 @@ const TileGame: React.FC = () => {
                 >
                   Far-Sight Vision
                   <div className="text-sm font-normal">8 Tile Radius</div>
-                  <div className="text-xs">See danger early</div>
+                  <div className="text-xs">Maximum visibility</div>
                 </button>
               </div>
               <div className="flex justify-center items-center mt-4 text-xs text-gray-400">
@@ -1244,7 +1244,7 @@ const TileGame: React.FC = () => {
 
   return (
     <div className="app-shell">
-      <div className="game-panel" style={{ maxWidth: 1400, width: '100%' }}>
+      <div className="game-panel" style={{ maxWidth: 1600, width: '100%' }}>
         <div className="mb-3 text-white text-center">
           <div className="mb-2">
             <img
@@ -1253,10 +1253,21 @@ const TileGame: React.FC = () => {
               className="game-logo"
             />
           </div>
-          <div className="text-xs text-gray-400 mb-2">
-            Difficulty: <span className="text-yellow-300">{difficulty.toUpperCase()}</span>{' '}
-            • Level <span className="text-cyan-400">{gameState.currentLevel}</span> • Vision:{' '}
-            <span className="text-green-300">{visionType.toUpperCase()}</span>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-gray-400">
+              Difficulty: <span className="text-yellow-300">{difficulty.toUpperCase()}</span>{' '}
+              • Level <span className="text-cyan-400">{gameState.currentLevel}</span> • Vision:{' '}
+              <span className="text-green-300">{visionType.toUpperCase()}</span>
+            </div>
+            <button
+              onClick={() => {
+                setDifficulty(null);
+                setVisionType(null);
+              }}
+              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs"
+            >
+              Change Settings
+            </button>
           </div>
           <div className="flex gap-6 justify-center text-lg font-bold mb-2 hud-bar">
             <div className="flex items-center gap-2 stat-pill">
@@ -1305,6 +1316,17 @@ const TileGame: React.FC = () => {
         }}
       >
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'nowrap', maxWidth: '100%', overflow: 'hidden', paddingLeft: '20px', paddingRight: '20px' }}>
+          {game && (
+            <div style={{ width: 320, flexShrink: 0, minWidth: 0 }}>
+              <div className="overlay-card trade-card" style={{ width: '81%', minHeight: '575px' }}>
+                <AutoPlayControls
+                  game={game}
+                  onMove={() => setGameState(game.getGameState())}
+                  disabled={showTradeMenu}
+                />
+              </div>
+            </div>
+          )}
           <div style={{ width: 320, flexShrink: 0, minWidth: 0 }}>
             <div className="overlay-card trade-card text-center" style={{ width: '81%', minHeight: '575px' }}>
               {showTradeMenu && currentOffer ? (
@@ -1436,16 +1458,17 @@ const TileGame: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ width: viewportWidth, flexShrink: 0, minWidth: 0 }}>
-            <div
-              className="relative border-4 border-gray-600 overflow-hidden"
-              style={{
-                width: viewportWidth,
-                height: viewportHeight,
-                backgroundColor: '#0b1120',
-                imageRendering: 'pixelated',
-              }}
-            >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+            <div style={{ width: viewportWidth, flexShrink: 0, minWidth: 0 }}>
+              <div
+                className="relative border-4 border-gray-600 overflow-hidden"
+                style={{
+                  width: viewportWidth,
+                  height: viewportHeight,
+                  backgroundColor: '#0b1120',
+                  imageRendering: 'pixelated',
+                }}
+              >
               <div
                 style={{
                   position: 'absolute',
@@ -1575,108 +1598,89 @@ const TileGame: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '16px', width: '100%', justifyContent: 'center', maxWidth: viewportWidth }}>
+              <div
+                className="overlay-card"
+                style={{ padding: '0.75rem 1rem', fontSize: '9px', textAlign: 'left', flex: 1, height: 265, overflowY: 'auto' }}
+              >
+                <div style={{ fontSize: '0.75rem', marginBottom: 6, fontWeight: 'bold' }}>
+                  Terrain Legend (cost per move)
+                </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: 320, flexShrink: 0, minWidth: 0 }}>
-            <div
-              className="overlay-card"
-              style={{ padding: '0.75rem 1rem', fontSize: '9px', textAlign: 'left', width: '100%' }}
-            >
-              <div style={{ fontSize: '0.75rem', marginBottom: 6, fontWeight: 'bold' }}>
-                Terrain Legend (cost per move)
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr',
+                    gap: '4px',
+                  }}
+                >
+                  {terrainLegend.map((terrain) => {
+                    const cost = terrain.getCost();
+                    const isWalkable = terrain.isWalkable();
+                    const label =
+                      terrain.name.charAt(0).toUpperCase() + terrain.name.slice(1);
+
+                    return (
+                      <div
+                        key={terrain.name}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 14,
+                            height: 14,
+                            borderRadius: 3,
+                            backgroundColor: terrain.getColor(),
+                            boxShadow: '0 0 0 2px rgba(0,0,0,0.6)',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.7rem' }}>{label}</div>
+                          <div style={{ fontSize: '0.6rem', color: '#9ca3af' }}>
+                            {isWalkable
+                              ? `Food ${cost.food} • Water ${cost.water}`
+                              : 'Impassable'}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               <div
+                className="overlay-card"
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr',
-                  gap: '4px',
+                  fontSize: '9px',
+                  height: 265,
+                  overflowY: 'auto',
+                  textAlign: 'left',
+                  padding: '0.75rem 1rem',
+                  flex: 1,
                 }}
               >
-                {terrainLegend.map((terrain) => {
-                  const cost = terrain.getCost();
-                  const isWalkable = terrain.isWalkable();
-                  const label =
-                    terrain.name.charAt(0).toUpperCase() + terrain.name.slice(1);
-
-                  return (
-                    <div
-                      key={terrain.name}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 14,
-                          height: 14,
-                          borderRadius: 3,
-                          backgroundColor: terrain.getColor(),
-                          boxShadow: '0 0 0 2px rgba(0,0,0,0.6)',
-                          flexShrink: 0,
-                        }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.7rem' }}>{label}</div>
-                        <div style={{ fontSize: '0.6rem', color: '#9ca3af' }}>
-                          {isWalkable
-                            ? `Food ${cost.food} • Water ${cost.water}`
-                            : 'Impassable'}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-              
-            {game && (
-              <AutoPlayControls
-                game={game}
-                onMove={() => setGameState(game.getGameState())}
-                disabled={showTradeMenu}
-              />
-            )}
-
-            <div
-              className="overlay-card"
-              style={{
-                fontSize: '9px',
-                height: Math.max(360, viewportHeight - 240),
-                overflowY: 'auto',
-                textAlign: 'left',
-                padding: '0.75rem 1rem',
-                width: '100%',
-              }}
-            >
-              <div style={{ fontSize: '0.75rem', marginBottom: 4, fontWeight: 'bold' }}>
-                Move Log
-              </div>
-              {moveLog.length === 0 ? (
-                <div className="text-gray-400" style={{ fontSize: '0.65rem' }}>
-                  Your recent moves will appear here.
+                <div style={{ fontSize: '0.75rem', marginBottom: 4, fontWeight: 'bold' }}>
+                  Move Log
                 </div>
-              ) : (
-                moveLog.map((line, idx) => (
-                  <div key={idx} style={{ fontSize: '0.65rem', marginBottom: 2 }}>{line}</div>
-                ))
-              )}
+                {moveLog.length === 0 ? (
+                  <div className="text-gray-400" style={{ fontSize: '0.65rem' }}>
+                    Your recent moves will appear here.
+                  </div>
+                ) : (
+                  moveLog.map((line, idx) => (
+                    <div key={idx} style={{ fontSize: '0.65rem', marginBottom: 2 }}>{line}</div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
-        </div>
-        <div style={{ marginTop: '12px', textAlign: 'center' }}>
-          <button
-            onClick={() => {
-              setDifficulty(null);
-              setVisionType(null);
-            }}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm"
-          >
-            Change Settings
-          </button>
         </div>
       </div>
     </div>

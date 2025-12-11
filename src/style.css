@@ -188,6 +188,12 @@ body {
 .bg-cyan-700 {
   background-color: #0e7490;
 }
+.bg-orange-600 {
+  background-color: #ea580c;
+}
+.bg-orange-700 {
+  background-color: #c2410c;
+}
 
 .rounded {
   border-radius: 0.25rem;
@@ -270,6 +276,9 @@ body {
 }
 .hover\:bg-cyan-700:hover {
   background-color: #0e7490;
+}
+.hover\:bg-orange-700:hover {
+  background-color: #c2410c;
 }
 .hover\:bg-gray-700:hover {
   background-color: #374151;

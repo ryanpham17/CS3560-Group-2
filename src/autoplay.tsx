@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Brain } from '/home/kai/CS3560-Group-2/src/brain.ts';
+import { Brain } from './brain';
 
 interface AutoPlayControlsProps {
   game: any;
@@ -7,24 +7,38 @@ interface AutoPlayControlsProps {
   disabled?: boolean;
 }
 
-type BrainPersonality = 'survivalist' | 'cautious' | 'balanced' | 'aggressive' | 'explorer';
+type BrainPersonality = 'greedy' | 'explorer' | 'aggressive';
 
 export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({ 
   game, 
   onMove,
   disabled = false 
 }) => {
-  const [selectedPersonality, setSelectedPersonality] = useState<BrainPersonality>('survivalist');
+  const [selectedPersonality, setSelectedPersonality] = useState<BrainPersonality>('greedy');
   const [brain, setBrain] = useState<Brain>(new Brain(selectedPersonality));
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(1000);
-  const [brainLog, setBrainLog] = useState<string[]>([]);
   const [lastMoveReason, setLastMoveReason] = useState<string>('');
+
+  // Calculate thresholds based on difficulty (inferred from map size)
+  const getStartingResources = (mapSize: number): { food: number; water: number } => {
+    if (mapSize === 12) return { food: 100, water: 100 }; // easy
+    if (mapSize === 16) return { food: 75, water: 75 };  // medium
+    if (mapSize === 20) return { food: 50, water: 50 };  // hard
+    return { food: 100, water: 100 }; // default
+  };
+
+  const gameState = game?.getGameState();
+  const mapSize = gameState?.mapSize || 12;
+  const startingResources = getStartingResources(mapSize);
+  
+  // Calculate thresholds for each brain type
+  const explorerThreshold = Math.round(startingResources.food * 0.5);
+  const aggressiveCritical = Math.round(startingResources.food * 0.15);
 
   useEffect(() => {
     const newBrain = new Brain(selectedPersonality);
     setBrain(newBrain);
-    setBrainLog(prev => [`Brain changed to: ${selectedPersonality}`, ...prev.slice(0, 9)]);
   }, [selectedPersonality]);
 
   useEffect(() => {
@@ -48,30 +62,19 @@ export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({
     
     if (gameState.gameOver || gameState.gameWon) {
       setIsAutoPlaying(false);
-      setBrainLog(prev => [`Game ${gameState.gameWon ? 'WON' : 'OVER'}`, ...prev]);
       return;
     }
     
     const bestMove = brain.calculateBestMove(gameState);
     
     if (!bestMove) {
-      setBrainLog(prev => ['Brain: No valid moves available', ...prev]);
       setIsAutoPlaying(false);
       return;
     }
     
-    const result = game.attemptMove(bestMove.dx, bestMove.dy);
-    
-    const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-    const logEntry = `[${time}] [${selectedPersonality}] ${bestMove.reason}`;
-    setBrainLog(prev => [logEntry, ...prev.slice(0, 9)]);
+    game.attemptMove(bestMove.dx, bestMove.dy);
     setLastMoveReason(bestMove.reason);
-    
     onMove();
-    
-    if (result && 'message' in result && result.message) {
-      setBrainLog(prev => [`Result: ${result.message}`, ...prev.slice(0, 9)]);
-    }
   };
 
   const handleSingleStep = () => {
@@ -88,13 +91,8 @@ export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({
     setPlaySpeed(speed);
   };
 
-  const clearLog = () => {
-    setBrainLog([]);
-    setLastMoveReason('');
-  };
-
   return (
-    <div className="auto-play-panel" style={{ marginBottom: '12px' }}>
+    <div>
       <div className="mb-3">
         <div className="flex justify-between items-center mb-2">
           <h3 className="text-white text-base font-bold">Brain Control</h3>
@@ -103,48 +101,56 @@ export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({
           </div>
         </div>
         
+        <div className="offer-display mb-3" style={{ padding: '0.5rem' }}>
+          {selectedPersonality === 'greedy' && (
+            <div>
+              <div className="text-green-400 font-bold mb-1" style={{ fontSize: '0.7rem' }}>Greedy Strategy:</div>
+              <div className="text-gray-300" style={{ fontSize: '0.65rem', lineHeight: '1.3' }}>Obsessively collects every visible resource (food, water, gold) before pursuing the trophy. Ignores resource levels and thresholds - if resources are visible, they must be collected first. Only moves toward the trophy when no resources are in sight.</div>
+            </div>
+          )}
+          {selectedPersonality === 'explorer' && (
+            <div>
+              <div className="text-yellow-400 font-bold mb-1" style={{ fontSize: '0.7rem' }}>Explorer Strategy:</div>
+              <div className="text-gray-300" style={{ fontSize: '0.65rem', lineHeight: '1.3' }}>Maintains resources at 50% of starting levels ({explorerThreshold}+). Gathers resources to stay above threshold, but prioritizes the trophy when it's visible. Balances resource management with trophy pursuit.</div>
+            </div>
+          )}
+          {selectedPersonality === 'aggressive' && (
+            <div>
+              <div className="text-red-400 font-bold mb-1" style={{ fontSize: '0.7rem' }}>Aggressive Strategy:</div>
+              <div className="text-gray-300" style={{ fontSize: '0.65rem', lineHeight: '1.3' }}>Single-mindedly pursues the trophy, ignoring resources unless critically low (below {aggressiveCritical}). Takes calculated risks and explores aggressively to find the trophy. Only stops for resources when survival is at stake.</div>
+            </div>
+          )}
+        </div>
+        
         <div className="mb-3">
   <div className="text-xs text-gray-300 mb-1">Select Brain Type:</div>
   <div className="grid grid-cols-3 gap-1">
     {/* Row 1 */}
     <button
-      onClick={() => setSelectedPersonality('survivalist')}
+      onClick={() => setSelectedPersonality('greedy')}
       className={`px-2 py-1.5 rounded text-xs font-bold ${
-        selectedPersonality === 'survivalist'
+        selectedPersonality === 'greedy'
           ? 'bg-green-600 text-white'
           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
       }`}
       disabled={disabled}
     >
-      Survivalist
+      Greedy
     </button>
     <button
-      onClick={() => setSelectedPersonality('cautious')}
+      onClick={() => setSelectedPersonality('explorer')}
       className={`px-2 py-1.5 rounded text-xs font-bold ${
-        selectedPersonality === 'cautious'
+        selectedPersonality === 'explorer'
           ? 'bg-yellow-600 text-white'
           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
       }`}
       disabled={disabled}
     >
-      Cautious
+      Explorer
     </button>
-    <button
-      onClick={() => setSelectedPersonality('balanced')}
-      className={`px-2 py-1.5 rounded text-xs font-bold ${
-        selectedPersonality === 'balanced'
-          ? 'bg-purple-600 text-white'
-          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-      }`}
-      disabled={disabled}
-    >
-      Balanced
-    </button>
-    
- 
     <button
       onClick={() => setSelectedPersonality('aggressive')}
-      className={`px-2 py-1.5 rounded text-xs font-bold col-span-2 ${
+      className={`px-2 py-1.5 rounded text-xs font-bold ${
         selectedPersonality === 'aggressive'
           ? 'bg-red-600 text-white'
           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -152,17 +158,6 @@ export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({
       disabled={disabled}
     >
       Aggressive
-    </button>
-    <button
-      onClick={() => setSelectedPersonality('explorer')}
-      className={`px-2 py-1.5 rounded text-xs font-bold ${
-        selectedPersonality === 'explorer'
-          ? 'bg-blue-600 text-white'
-          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-      }`}
-      disabled={disabled}
-    >
-      Explorer
     </button>
   </div>
 </div>
@@ -218,33 +213,12 @@ export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({
           </button>
         </div>
         
-        <button
-          onClick={clearLog}
-          className="w-full px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs mb-3"
-        >
-          Clear Log
-        </button>
-        
         {lastMoveReason && (
           <div className="mb-2 p-2 bg-gray-800 rounded text-xs">
             <div className="text-gray-300 mb-1">Last move reason:</div>
             <div className="text-cyan-300">{lastMoveReason}</div>
           </div>
         )}
-      </div>
-      
-      <div className="log-container">
-        <div className="text-xs text-gray-300 mb-1">Brain Decision Log:</div>
-        <div className="log-content">
-          {brainLog.map((log, index) => (
-            <div key={index} className="log-entry text-xs text-gray-400 py-1 border-b border-gray-800">
-              {log}
-            </div>
-          ))}
-          {brainLog.length === 0 && (
-            <div className="text-xs text-gray-500 py-2 text-center">No decisions yet</div>
-          )}
-        </div>
       </div>
     </div>
   );
