@@ -198,6 +198,543 @@ The project follows all five SOLID principles:
 
 ---
 
+## How I Applied Object-Oriented Design Principles
+
+This section details the specific OOD principles I learned in class and how I applied them to transform the codebase from a procedural, tightly-coupled design into a well-structured, object-oriented system.
+
+### 1. **From Procedural to Object-Oriented: The Refactoring Journey**
+
+**Initial State (Before OOD):**
+The original codebase had several anti-patterns that violated OOD principles:
+- Magic strings and numbers scattered throughout the code (e.g., `'greedy'`, `'regular'`, hardcoded `5`, `10`, `15`)
+- Direct field access (e.g., `player.food`, `map.size`) breaking encapsulation
+- Large monolithic classes with multiple responsibilities
+- No clear interfaces or abstractions
+- Brain personalities implemented as large if-else chains in a single method
+- Trader logic mixed directly into the `Game` class
+
+**Final State (After OOD):**
+The refactored codebase follows all OOD principles:
+- All magic values replaced with enums and constants from `types.ts`
+- All fields are private/protected with controlled access through methods
+- Classes have single, well-defined responsibilities
+- Clear interfaces define contracts between components
+- Brain personalities use the Strategy pattern with separate strategy classes
+- Trader logic extracted into dedicated `TraderService` class
+
+### 2. **Single Responsibility Principle (SRP) - Applied Through Service Extraction**
+
+**What I Learned:** Each class should have one reason to change. If a class has multiple responsibilities, it becomes harder to maintain and test.
+
+**How I Applied It:**
+
+**Example 1: TraderService Extraction**
+- **Before**: Trader offer generation, counter-offer calculations, and reward labeling were all mixed into the `Game` class (lines 696-900 in original code)
+- **After**: Created `TraderService` class (`src/trader-service.ts`) that handles ONLY trader-related business logic
+  - `generateOffer()`: Generates trader offers based on type
+  - `calculateCounterCost()`: Calculates counter-offer costs
+  - `getRewardLabel()`: Formats reward messages
+- **Benefit**: The `Game` class no longer needs to know how trader offers are generated. If trader logic changes, only `TraderService` needs modification.
+
+**Code Evidence:**
+```typescript
+// src/trader-service.ts lines 8-28
+export class TraderService {
+  static generateOffer(traderType: TraderType): TraderOffer {
+    // All trader offer logic isolated here
+    const basePool: TraderOffer[] = [...];
+    const offer = { ...basePool[Math.floor(Math.random() * basePool.length)] };
+    
+    if (traderType === TraderType.GENEROUS) {
+      offer.baseCost = Math.max(3, Math.round(offer.baseCost * 0.85));
+    }
+    return offer;
+  }
+}
+```
+
+**Example 2: Brain Strategy Separation**
+- **Before**: All brain personalities were implemented as large methods (`greedyMove()`, `explorerMove()`, `aggressiveMove()`) in the `Brain` class, each with 100+ lines of code
+- **After**: Each personality is now a separate strategy class:
+  - `GreedyStrategy` (`src/brain-strategies.ts` lines 32-127): Only responsible for greedy decision-making
+  - `ExplorerStrategy` (lines 128-264): Only responsible for explorer decision-making
+  - `AggressiveStrategy` (lines 265-383): Only responsible for aggressive decision-making
+- **Benefit**: Each strategy can be developed, tested, and modified independently. Adding a new personality doesn't require touching existing code.
+
+**Code Evidence:**
+```typescript
+// src/brain-strategies.ts lines 32-44
+export class GreedyStrategy implements IBrainStrategy {
+  constructor(private helper: BrainHelper) {}
+  
+  calculateMove(...): {dx: number, dy: number, reason: string} | null {
+    // ONLY greedy-specific logic here - no other personalities
+    const visibleTiles = vision.getVisibleTiles();
+    const availableResources = [];
+    // ... greedy collection logic
+  }
+}
+```
+
+### 3. **Open/Closed Principle (OCP) - Applied Through Strategy Pattern**
+
+**What I Learned:** Software entities should be open for extension but closed for modification. You should be able to add new functionality without changing existing code.
+
+**How I Applied It:**
+
+**The Brain System Refactoring:**
+- **Before**: To add a new brain personality, I would need to:
+  1. Add a new method to `Brain` class (e.g., `cautiousMove()`)
+  2. Add a new case in the `calculateBestMove()` switch statement
+  3. Modify the `Brain` class constructor
+  4. Risk breaking existing personalities
+  
+- **After**: To add a new brain personality, I only need to:
+  1. Create a new class implementing `IBrainStrategy` (e.g., `CautiousStrategy`)
+  2. Add it to the `BrainStrategyFactory` switch statement
+  3. The `Brain` class itself never needs to change
+
+**Code Evidence:**
+```typescript
+// src/brain.ts lines 20-43
+export class Brain {
+  private readonly strategy: IBrainStrategy;  // Depends on interface, not concrete classes
+  
+  constructor(personality: BrainPersonality = BrainPersonality.GREEDY) {
+    // Factory creates strategy - Brain doesn't know which one
+    this.strategy = BrainStrategyFactory.create(personality, this.helper);
+  }
+  
+  public calculateBestMove(gameState: IGameState): ... {
+    // Delegates to strategy - doesn't care which one
+    const result = this.strategy.calculateMove(...);
+    return result || this.basicMove(gameState, possibleMoves);
+  }
+}
+```
+
+**Real-World Impact:**
+When the user requested to remove the "explorer" brain and rename "survivalist" to "greedy", I only needed to:
+- Delete `ExplorerStrategy` class (if it existed)
+- Rename `SurvivalistStrategy` to `GreedyStrategy`
+- Update the factory
+- The `Brain` class remained completely unchanged
+
+### 4. **Liskov Substitution Principle (LSP) - Applied Through Proper Inheritance**
+
+**What I Learned:** Subtypes must be substitutable for their base types without altering the correctness of the program.
+
+**How I Applied It:**
+
+**Terrain Hierarchy:**
+- All terrain subclasses (`GrassTerrain`, `DesertTerrain`, etc.) can be used anywhere a `Terrain` is expected
+- The `Tile` class works with any `Terrain` subtype without knowing which specific type it is
+- Each terrain correctly implements `getCost()` and `isWalkable()` without violating base class expectations
+
+**Code Evidence:**
+```typescript
+// src/App.tsx lines 439-443 - Map generation
+if (this.isBorder(x, y)) {
+  row.push(new Tile(new WallTerrain()));  // WallTerrain is a Terrain
+} else {
+  const terrain = this.createRandomTerrain();  // Returns any Terrain subtype
+  row.push(new Tile(terrain, resource));  // Works with any Terrain
+}
+
+// src/App.tsx lines 300-302 - Tile uses Terrain polymorphically
+getMoveCost() {
+  return this.terrain.getCost();  // Works for ANY Terrain subtype
+}
+```
+
+**Resource Hierarchy:**
+- All resources can be collected using the same `collectResource()` method
+- Each resource's `applyEffect()` method returns a `PlayerResources` object, maintaining the contract
+- No resource subclass breaks the expected behavior
+
+**Code Evidence:**
+```typescript
+// src/App.tsx lines 351-356 - Player.collectResource()
+collectResource(resource: Resource) {
+  // Works with ANY Resource subtype (Spring, Animal, Gold, Trophy, Trader)
+  const newResources = resource.applyEffect(this.getResources());
+  this.food = newResources.food;
+  this.water = newResources.water;
+  this.gold = newResources.gold;
+}
+```
+
+### 5. **Interface Segregation Principle (ISP) - Applied Through Focused Interfaces**
+
+**What I Learned:** Clients should not be forced to depend on interfaces they don't use. Many specific interfaces are better than one general-purpose interface.
+
+**How I Applied It:**
+
+**Before Refactoring:**
+- Code would have used large, monolithic interfaces or direct class dependencies
+- Brain strategies would depend on the entire `Game` class
+- Vision system would be tightly coupled to `Player` and `GameMap` classes
+
+**After Refactoring:**
+- Created focused, minimal interfaces:
+  - `IGameState`: Only the game state data needed by strategies (8 properties)
+  - `IVision`: Only vision methods needed (6 methods)
+  - `IBrainStrategy`: Only the `calculateMove()` method
+  - `ITile`, `ITerrain`, `IResource`: Minimal interfaces for each domain concept
+
+**Code Evidence:**
+```typescript
+// src/interfaces.ts lines 8-18 - Focused IGameState interface
+export interface IGameState {
+  player: IPlayer;        // Only player position/resources, not entire Player class
+  map: ITile[][];         // Only map structure, not GameMap class
+  mapSize: number;        // Only size, not entire config
+  resources: PlayerResources;
+  gameOver: boolean;
+  gameWon: boolean;
+  currentLevel: number;
+  playerInstance: IPlayer;
+  // Notice: No game logic methods, no trader methods, no move methods
+  // Strategies only get what they need
+}
+
+// src/interfaces.ts lines 68-75 - Focused IVision interface
+export interface IVision {
+  getVisibleTiles(): Array<{x: number, y: number, tile: ITile}>;
+  findPathToTile(targetX: number, targetY: number): PathStep[] | null;
+  closestFood(): VisionResult | null;
+  closestWater(): VisionResult | null;
+  closestGold(): VisionResult | null;
+  closestTrader(): VisionResult | null;
+  // Notice: No internal implementation details exposed
+}
+```
+
+**Benefit:**
+- Brain strategies don't need to know about trader logic, UI, or game setup
+- Vision system doesn't need to know about game difficulty or level progression
+- Each component depends only on what it actually uses
+
+### 6. **Dependency Inversion Principle (DIP) - Applied Through Interface Abstractions**
+
+**What I Learned:** High-level modules should not depend on low-level modules. Both should depend on abstractions (interfaces).
+
+**How I Applied It:**
+
+**The Brain-Vision Dependency:**
+- **Before**: `Brain` would directly depend on `Vision` class and `Game` class
+- **After**: `Brain` depends on `IVision` interface and `IGameState` interface
+  - If `Vision` implementation changes, `Brain` doesn't break
+  - If we create a different vision implementation (e.g., `FoggyVision`), `Brain` can use it without modification
+
+**Code Evidence:**
+```typescript
+// src/brain.ts lines 1-5 - Dependencies on abstractions
+import type { IGameState, IVision, Position } from './interfaces';  // Interfaces, not classes
+import type { IBrainStrategy } from './brain-strategies';            // Interface, not concrete strategies
+
+// src/brain.ts lines 130-140 - Uses interfaces
+public calculateBestMove(gameState: IGameState): ... {
+  const vision = new Vision(gameState);  // Creates concrete instance
+  // But vision is typed as IVision - could be any implementation
+  
+  const result = this.strategy.calculateMove(
+    gameState,      // IGameState interface
+    vision,         // IVision interface
+    trophyPos,
+    // ...
+  );
+}
+```
+
+**The Strategy Dependency:**
+- **Before**: Strategies would directly access `Game.player`, `Game.map`, etc.
+- **After**: Strategies receive `IGameState` and `IVision` interfaces
+  - Strategies can be tested with mock implementations
+  - Strategies don't know about `Game`, `Player`, or `GameMap` classes
+
+**Code Evidence:**
+```typescript
+// src/brain-strategies.ts lines 35-44 - Strategy uses interfaces
+export class GreedyStrategy implements IBrainStrategy {
+  calculateMove(
+    gameState: IGameState,  // Interface, not Game class
+    vision: IVision,        // Interface, not Vision class
+    trophyPos: Position | null,
+    // ...
+  ): {dx: number, dy: number, reason: string} | null {
+    // Uses gameState.player.x, not gameState.playerInstance.getPosition()
+    // Uses vision.getVisibleTiles(), not vision.internalMap
+  }
+}
+```
+
+### 7. **Encapsulation - Applied Through Private Fields and Accessor Methods**
+
+**What I Learned:** Hide internal implementation details. Expose only what's necessary through a controlled interface.
+
+**How I Applied It:**
+
+**Player Class Encapsulation:**
+- **Before**: Fields like `food`, `water`, `gold` were likely public, allowing direct modification
+- **After**: All fields are private with controlled access:
+  ```typescript
+  // src/App.tsx lines 306-310
+  class Player extends GameObject {
+    private food: number;           // Hidden from external access
+    private water: number;           // Hidden from external access
+    private gold: number;            // Hidden from external access
+    private readonly visionRadius: number;  // Immutable after construction
+    private lives: number;           // Hidden from external access
+  ```
+- **Controlled Access**: Public methods validate and control state changes:
+  ```typescript
+  // src/App.tsx lines 401-407
+  addFood(amount: number): void {
+    this.food += amount;  // Can add validation here if needed
+  }
+  
+  subtractGold(amount: number): void {
+    this.gold -= amount;  // Could add: if (this.gold < amount) throw error
+  }
+  ```
+
+**GameMap Encapsulation:**
+- **Before**: `map.size`, `map.tiles` would be directly accessible
+- **After**: All fields are private with readonly protection:
+  ```typescript
+  // src/App.tsx lines 418-423
+  class GameMap {
+    private readonly size: number;        // Cannot be modified after construction
+    private readonly difficulty: Difficulty;
+    private readonly tiles: Tile[][];    // Internal structure hidden
+  ```
+- **Controlled Access**: Public methods provide safe access:
+  ```typescript
+  // src/App.tsx lines 503-505
+  getSize(): number { return this.size; }
+  getTiles(): Tile[][] { return this.tiles; }  // Returns copy or reference as needed
+  getDifficulty(): Difficulty { return this.difficulty; }
+  ```
+
+**Real-World Benefit:**
+When the user requested changes to brain behavior, I could modify internal brain logic without worrying about breaking external code that directly accessed brain state. The `Brain` class's public interface (`calculateBestMove()`) remained stable.
+
+### 8. **Abstraction - Applied Through Interfaces and Abstract Classes**
+
+**What I Learned:** Focus on "what" an object does, not "how" it does it. Hide complex implementation details behind simple interfaces.
+
+**How I Applied It:**
+
+**Abstract Base Classes:**
+- `Terrain` base class defines the interface (`getCost()`, `getColor()`, `getName()`) but doesn't implement `getCost()`
+- `Resource` base class defines the interface (`applyEffect()`, `getMessage()`) but requires subclasses to implement them
+- `GameObject` is abstract and cannot be instantiated directly
+
+**Code Evidence:**
+```typescript
+// src/App.tsx lines 30-54 - Terrain abstraction
+export class Terrain {
+  protected readonly name: TerrainType;
+  protected readonly color: string;
+  
+  // Concrete methods - shared by all terrains
+  getColor(): string { return this.color; }
+  getName(): TerrainType { return this.name; }
+  isWalkable(): boolean { return true; }
+  
+  // Abstract method - must be implemented by subclasses
+  getCost(): MoveCost {
+    throw new Error("getCost() must be implemented by subclass");
+  }
+}
+
+// Usage code doesn't need to know which specific terrain type
+const cost = terrain.getCost();  // Works for any Terrain
+```
+
+**Interface Abstractions:**
+- `IGameState` abstracts away the `Game` class implementation
+- `IVision` abstracts away the `Vision` class implementation
+- Code using these interfaces doesn't need to know about internal data structures or algorithms
+
+**Code Evidence:**
+```typescript
+// src/vision.ts lines 21-36 - Vision implements IVision
+export class Vision implements IVision {
+  private readonly gameState: IGameState;  // Uses interface, not concrete Game
+  private readonly playerX: number;
+  private readonly playerY: number;
+  private readonly visionRadius: number;
+  private readonly map: ITile[][];         // Uses interface, not concrete Tile[][]
+  private readonly mapSize: number;
+  
+  constructor(gameState: IGameState) {
+    // Implementation details hidden - external code only sees IVision interface
+    this.gameState = gameState;
+    this.playerX = gameState.player.x;
+    // ...
+  }
+}
+```
+
+### 9. **Polymorphism - Applied Throughout the System**
+
+**What I Learned:** Objects of different types can be treated uniformly through a common interface.
+
+**How I Applied It:**
+
+**Terrain Polymorphism in Map Generation:**
+```typescript
+// src/App.tsx lines 455-461 - createRandomTerrain()
+createRandomTerrain() {
+  const rand = Math.random();
+  if (rand < 0.4) return new GrassTerrain();      // Returns Terrain
+  if (rand < 0.6) return new DesertTerrain();    // Returns Terrain
+  if (rand < 0.75) return new ForestTerrain();   // Returns Terrain
+  // ... all return Terrain type, but different implementations
+}
+
+// src/App.tsx lines 441-443 - All stored as Terrain
+const terrain = this.createRandomTerrain();  // Could be any Terrain subtype
+row.push(new Tile(terrain, resource));      // Tile works with any Terrain
+```
+
+**Resource Polymorphism in Collection:**
+```typescript
+// src/App.tsx lines 624-694 - attemptMove() handles all resources polymorphically
+const resource = tile.getResource();
+if (resource) {
+  if (resource.getType() === ResourceType.TROPHY) {
+    // Trophy-specific logic
+  } else if (resource.getType() === ResourceType.TRADER) {
+    // Trader-specific logic
+  } else {
+    // Generic resource collection - works for Spring, Animal, Gold
+    this.player.collectResource(resource);  // Polymorphic call
+    tile.removeResource();
+  }
+}
+```
+
+**Strategy Polymorphism in Brain:**
+```typescript
+// src/brain.ts lines 130-140 - Strategy polymorphism
+public calculateBestMove(gameState: IGameState): ... {
+  // strategy could be GreedyStrategy, ExplorerStrategy, or AggressiveStrategy
+  // Brain doesn't know which one - they're all IBrainStrategy
+  const result = this.strategy.calculateMove(
+    gameState,
+    vision,
+    trophyPos,
+    food,
+    water,
+    startingResources,
+    visitedTiles,
+    recentPositions
+  );
+  // Same interface, different behavior based on which strategy is active
+}
+```
+
+### 10. **Elimination of Magic Values - Applied Through Enums and Constants**
+
+**What I Learned:** Magic strings and numbers make code hard to understand and maintain. Use named constants and enums.
+
+**How I Applied It:**
+
+**Before Refactoring:**
+- Code had magic strings: `'greedy'`, `'regular'`, `'focused'`
+- Code had magic numbers: `5`, `10`, `15`, `0.5`, `0.85`
+- No single source of truth for these values
+
+**After Refactoring:**
+- All values moved to `src/types.ts`:
+  ```typescript
+  // src/types.ts lines 1-19 - BrainPersonality enum
+  export const BrainPersonality = {
+    GREEDY: 'greedy',
+    EXPLORER: 'explorer',
+    AGGRESSIVE: 'aggressive'
+  } as const;
+  
+  // src/types.ts lines 78-86 - TERRAIN_COSTS constant
+  export const TERRAIN_COSTS: Record<TerrainType, MoveCost> = {
+    [TerrainType.GRASS]: { food: 1, water: 1 },
+    [TerrainType.DESERT]: { food: 1, water: 3 },
+    // ...
+  };
+  
+  // src/types.ts lines 96-104 - BRAIN_THRESHOLD_MULTIPLIERS
+  export const BRAIN_THRESHOLD_MULTIPLIERS = {
+    EXPLORER_SAFE: 0.5,
+    EXPLORER_CRITICAL: 0.25,
+    AGGRESSIVE_CRITICAL: 0.15,
+    AGGRESSIVE_MINIMUM: 0.1
+  } as const;
+  ```
+
+**Benefits:**
+- Type safety: TypeScript catches typos (`BrainPersonality.GREEDY` vs `'greedy'`)
+- Single source of truth: Change value once, affects entire codebase
+- Self-documenting: `BRAIN_THRESHOLD_MULTIPLIERS.EXPLORER_SAFE` is clearer than `0.5`
+- IDE support: Autocomplete and refactoring work correctly
+
+### 11. **How OOD Principles Solved Real Problems**
+
+**Problem 1: Adding New Brain Personalities Was Difficult**
+- **Before OOD**: Required modifying the `Brain` class, adding new methods, updating switch statements
+- **After OOD**: Create new strategy class, add to factory - `Brain` class unchanged
+- **Principle Used**: Open/Closed Principle, Strategy Pattern
+
+**Problem 2: Trader Logic Was Scattered**
+- **Before OOD**: Trader offer generation, counter-offer logic, and reward formatting were mixed in `Game` class
+- **After OOD**: All trader logic in `TraderService` - single responsibility, easy to test
+- **Principle Used**: Single Responsibility Principle
+
+**Problem 3: Direct Field Access Caused Bugs**
+- **Before OOD**: Code could directly modify `player.food = -5` (invalid state)
+- **After OOD**: Must use `player.addFood()` or `player.setFood()` - can add validation
+- **Principle Used**: Encapsulation
+
+**Problem 4: Tight Coupling Made Testing Hard**
+- **Before OOD**: Brain strategies depended on `Game` class - couldn't test in isolation
+- **After OOD**: Strategies depend on `IGameState` interface - can use mock implementations
+- **Principle Used**: Dependency Inversion Principle
+
+**Problem 5: Magic Values Made Code Hard to Understand**
+- **Before OOD**: `if (food < 10)` - what does 10 mean? Is it the same everywhere?
+- **After OOD**: `if (food < CRITICAL_THRESHOLD)` - clear, self-documenting, consistent
+- **Principle Used**: Constants and Enums (best practice)
+
+### 12. **Measurable Improvements from OOD Application**
+
+1. **Code Organization**: 
+   - Before: 1 large file (`App.tsx`) with 1700+ lines
+   - After: 8 focused files (`App.tsx`, `brain.ts`, `brain-strategies.ts`, `vision.ts`, `trader-service.ts`, `types.ts`, `interfaces.ts`, `game-types.ts`)
+
+2. **Maintainability**:
+   - Before: Changing brain logic required understanding entire `Brain` class
+   - After: Each strategy is self-contained (100-150 lines each)
+
+3. **Extensibility**:
+   - Before: Adding new terrain required modifying multiple places
+   - After: Add new terrain class, add to enum - done
+
+4. **Type Safety**:
+   - Before: String literals could have typos (`'greedy'` vs `'greed'`)
+   - After: TypeScript enums catch errors at compile time
+
+5. **Testability**:
+   - Before: Hard to test because of tight coupling
+   - After: Interfaces allow easy mocking and unit testing
+
+### Conclusion
+
+By applying Object-Oriented Design principles learned in class, I transformed a procedural, tightly-coupled codebase into a well-structured, maintainable, and extensible system. Each principle (SOLID, encapsulation, abstraction, polymorphism, inheritance) was not just applied theoretically, but solved real problems in the codebase. The result is code that is easier to understand, modify, test, and extend - exactly what OOD principles are designed to achieve.
+
+---
+
 ## Grading Information
 
 ### 1. Terrain Types (15 points)
@@ -290,61 +827,221 @@ The project implements 6 different terrain types, each with unique movement cost
 
 **Number of trader types: 3**
 
-The project implements 3 distinct trader types with unique behaviors, decision-making logic, and patience thresholds:
+The project implements 3 distinct trader types with unique behaviors, decision-making logic, patience thresholds, and probability-based acceptance systems. Each trader has a different personality that affects how they respond to counter-offers, making trading a strategic minigame within the larger game.
 
-1. **Regular Trader** (`TraderType.REGULAR`)
-   - **Acceptance threshold**: Accepts counter offers if they are ≥ 90% of base cost
-   - **Patience**: Leaves after 3 failed counter offers
-   - **Pricing**: Standard pricing (no discounts)
-   - **Behavior**: Moderate flexibility, standard business practices
-   - **Decision logic**: If `counterGold >= baseCost * 0.9`, accepts. Otherwise rejects and increments counter.
+---
 
-2. **Impatient Trader** (`TraderType.IMPATIENT`)
-   - **Acceptance threshold**: Accepts counter offers if they are ≥ 85% of base cost (more flexible than regular)
-   - **Patience**: Leaves after only 2 failed counter offers (least patient)
-   - **Pricing**: Standard pricing (no discounts)
-   - **Behavior**: More lenient on price but less patient with negotiations
-   - **Special feature**: Becomes unavailable for 5 turns after leaving (can't be found immediately)
-   - **Decision logic**: If `counterGold >= baseCost * 0.85`, accepts. If offer is far below (≥4 gold difference), leaves immediately offended. Otherwise rejects and increments counter.
+#### **1. Regular Trader** (`TraderType.REGULAR`)
 
-3. **Generous Trader** (`TraderType.GENEROUS`)
-   - **Acceptance threshold**: Accepts counter offers if they are ≥ 75% of base cost (very generous)
-   - **Patience**: Leaves after 4 failed counter offers (most patient)
-   - **Pricing**: Offers 15% discount on all trades (baseCost * 0.85)
-   - **Behavior**: Very generous with pricing and patience, but prevents overpayment
-   - **Special feature**: Stops players from offering MORE than base cost (doesn't want to scam players)
-   - **Decision logic**: If `counterGold > baseCost`, rejects with message about not wanting to scam. If `counterGold === baseCost`, accepts immediately. If `counterGold >= baseCost * 0.75`, uses probability-based acceptance. Otherwise rejects and increments counter.
+**Description**: The standard trader with moderate flexibility and standard business practices. They're fair but not overly generous, and they have reasonable patience for negotiations.
 
-**Detailed Decision-Making Algorithm:**
+**Initial Pricing**: 
+- No discounts - pays full base cost for all items
+- Base costs range from 6-14 gold depending on the item
+
+**How They Decide to Accept or Reject:**
+
+The Regular Trader uses a **probability-based acceptance system** with a **20% penalty per gold** you offer below the base cost:
+
+1. **If you offer MORE than base cost** (`counterGold > baseCost`):
+   - ✅ **Accepts immediately** - You're paying full price or more, no negotiation needed
+   - Example: Base cost is 8 gold, you offer 10 gold → Trade accepted instantly
+
+2. **If you offer EXACTLY base cost** (`counterGold === baseCost`):
+   - ✅ **Accepts immediately** - You're paying the asking price
+   - Example: Base cost is 8 gold, you offer 8 gold → Trade accepted instantly
+
+3. **If you offer LESS than base cost** (`counterGold < baseCost`):
+   - Calculates `priceDiff = baseCost - counterGold` (how much you're underpaying)
+   - Calculates acceptance probability: `successRate = 1 - (0.2 × priceDiff)`
+   - Uses random chance: `Math.random() < successRate`
+   - If accepted: ✅ Trade completes
+   - If rejected: ❌ Counter increments, trader stays
+
+**Probability Examples for Regular Trader:**
+- Base cost: **8 gold**
+  - Offer **8 gold** (0 difference): **100%** chance (always accepts)
+  - Offer **7 gold** (1 difference): **80%** chance (1 - 0.2×1 = 0.8)
+  - Offer **6 gold** (2 difference): **60%** chance (1 - 0.2×2 = 0.6)
+  - Offer **5 gold** (3 difference): **40%** chance (1 - 0.2×3 = 0.4)
+  - Offer **4 gold** (4 difference): **20%** chance (1 - 0.2×4 = 0.2)
+  - Offer **3 gold** (5 difference): **0%** chance (1 - 0.2×5 = 0.0, minimum 0)
+
+**Patience System:**
+- Tracks failed counter-offers with an internal counter
+- After **5 failed counter-offers**, the trader leaves permanently
+- Each rejection increments the counter
+- Successful trade resets the counter to 0
+
+**Code Location**: `src/App.tsx` lines 825-854
+
+---
+
+#### **2. Impatient Trader** (`TraderType.IMPATIENT`)
+
+**Description**: More flexible on price but has very little patience. They're willing to accept lower offers, but they'll leave quickly if negotiations drag on. If you insult them with a very low offer, they'll leave immediately in offense.
+
+**Initial Pricing**: 
+- No discounts - pays full base cost for all items (same as Regular Trader)
+- Base costs range from 6-14 gold depending on the item
+
+**How They Decide to Accept or Reject:**
+
+The Impatient Trader uses a **probability-based acceptance system** with a **25% penalty per gold** you offer below the base cost (more lenient than Regular Trader):
+
+1. **If you offer MORE than base cost** (`counterGold > baseCost`):
+   - ✅ **Accepts immediately** - You're paying full price or more
+   - Example: Base cost is 8 gold, you offer 10 gold → Trade accepted instantly
+
+2. **If you offer EXACTLY base cost** (`counterGold === baseCost`):
+   - ✅ **Accepts immediately** - You're paying the asking price
+   - Example: Base cost is 8 gold, you offer 8 gold → Trade accepted instantly
+
+3. **If your offer is VERY LOW** (`priceDiff >= 4`):
+   - ❌ **Leaves immediately offended** - They take it as an insult
+   - Example: Base cost is 8 gold, you offer 3 gold (5 difference) → Trader leaves immediately, becomes unavailable for 5 turns
+   - This happens BEFORE the probability calculation
+
+4. **If you offer LESS than base cost** (but `priceDiff < 4`):
+   - Calculates `priceDiff = baseCost - counterGold`
+   - Calculates acceptance probability: `successRate = 1 - (0.25 × priceDiff)`
+   - Uses random chance: `Math.random() < successRate`
+   - If accepted: ✅ Trade completes
+   - If rejected: ❌ Counter increments, trader stays
+
+**Probability Examples for Impatient Trader:**
+- Base cost: **8 gold**
+  - Offer **8 gold** (0 difference): **100%** chance (always accepts)
+  - Offer **7 gold** (1 difference): **75%** chance (1 - 0.25×1 = 0.75)
+  - Offer **6 gold** (2 difference): **50%** chance (1 - 0.25×2 = 0.5)
+  - Offer **5 gold** (3 difference): **25%** chance (1 - 0.25×3 = 0.25)
+  - Offer **4 gold** (4 difference): **0%** chance (1 - 0.25×4 = 0.0) OR leaves immediately if priceDiff >= 4
+  - Offer **3 gold** (5 difference): **Leaves immediately** (priceDiff >= 4)
+
+**Patience System:**
+- Tracks failed counter-offers with an internal counter
+- After **3 failed counter-offers**, the trader leaves permanently (less patient than Regular)
+- Each rejection increments the counter
+- Successful trade resets the counter to 0
+
+**Special Feature - Unavailability:**
+- When the Impatient Trader leaves (either offended or after 3 rejections), they become **unavailable for 5 turns**
+- During this time, you cannot find or interact with them
+- After 5 turns, they may appear again on the map (if the game generates a new trader)
+
+**Code Location**: `src/App.tsx` lines 780-823
+
+---
+
+#### **3. Generous Trader** (`TraderType.GENEROUS`)
+
+**Description**: The most patient and generous trader. They offer automatic 15% discounts on all items, accept lower offers more easily, and have the most patience. However, they have a strong moral code - they will NOT accept offers above base cost because they don't want to scam players.
+
+**Initial Pricing**: 
+- **15% discount** on all items - base cost is automatically reduced by 15%
+- Formula: `offer.baseCost = Math.max(3, Math.round(originalBaseCost × 0.85))`
+- Example: Item that normally costs 8 gold costs **6.8 → 7 gold** (rounded) from Generous Trader
+- Example: Item that normally costs 14 gold costs **11.9 → 12 gold** (rounded) from Generous Trader
+- Minimum cost is 3 gold (even if discount would make it lower)
+
+**How They Decide to Accept or Reject:**
+
+The Generous Trader uses a **probability-based acceptance system** with a **15% penalty per gold** you offer below the base cost (most lenient of all traders):
+
+1. **If you offer MORE than base cost** (`counterGold > baseCost`):
+   - ❌ **Rejects immediately** - They don't want to scam you!
+   - Message: "The generous trader stops you. They don't want to scam you and only want [baseCost] gold."
+   - Example: Base cost is 7 gold (already discounted), you offer 10 gold → Rejected with message
+
+2. **If you offer EXACTLY base cost** (`counterGold === baseCost`):
+   - ✅ **Accepts immediately** - You're paying their discounted asking price
+   - Example: Base cost is 7 gold, you offer 7 gold → Trade accepted instantly
+
+3. **If you offer LESS than base cost** (`counterGold < baseCost`):
+   - Calculates `priceDiff = baseCost - counterGold` (how much you're underpaying)
+   - Calculates acceptance probability: `successRate = 1 - (0.15 × priceDiff)`
+   - Uses random chance: `Math.random() < successRate`
+   - If accepted: ✅ Trade completes
+   - If rejected: ❌ Counter increments, trader stays
+
+**Probability Examples for Generous Trader:**
+- Base cost: **7 gold** (already discounted from 8 gold)
+  - Offer **7 gold** (0 difference): **100%** chance (always accepts)
+  - Offer **6 gold** (1 difference): **85%** chance (1 - 0.15×1 = 0.85)
+  - Offer **5 gold** (2 difference): **70%** chance (1 - 0.15×2 = 0.7)
+  - Offer **4 gold** (3 difference): **55%** chance (1 - 0.15×3 = 0.55)
+  - Offer **3 gold** (4 difference): **40%** chance (1 - 0.15×4 = 0.4)
+  - Offer **2 gold** (5 difference): **25%** chance (1 - 0.15×5 = 0.25)
+  - Offer **1 gold** (6 difference): **10%** chance (1 - 0.15×6 = 0.1)
+
+**Patience System:**
+- Tracks failed counter-offers with an internal counter
+- After **7 failed counter-offers**, the trader leaves permanently (most patient of all traders)
+- Each rejection increments the counter
+- Successful trade resets the counter to 0
+
+**Code Location**: `src/App.tsx` lines 743-778
+
+---
+
+#### **Comparison Table: How Offering Less Gold Affects Acceptance**
+
+| Your Offer | Regular Trader (8g base) | Impatient Trader (8g base) | Generous Trader (7g base*) |
+|------------|--------------------------|----------------------------|----------------------------|
+| **8 gold** (full price) | ✅ 100% (always) | ✅ 100% (always) | ❌ N/A (base is 7g) |
+| **7 gold** (1g under) | ✅ 80% chance | ✅ 75% chance | ✅ 100% (full price) |
+| **6 gold** (2g under) | ✅ 60% chance | ✅ 50% chance | ✅ 85% chance |
+| **5 gold** (3g under) | ✅ 40% chance | ✅ 25% chance | ✅ 70% chance |
+| **4 gold** (4g under) | ✅ 20% chance | ❌ Leaves immediately | ✅ 55% chance |
+| **3 gold** (5g under) | ✅ 0% chance | ❌ Leaves immediately | ✅ 40% chance |
+
+*Generous Trader's base cost is already 15% discounted, so 7g is their "full price" for an item that costs 8g from other traders.
+
+#### **Comparison Table: Patience and Special Features**
+
+| Trader Type | Patience (Failed Offers) | Probability Penalty | Special Features |
+|-------------|--------------------------|---------------------|------------------|
+| **Regular** | 5 rejections | 20% per gold under | None |
+| **Impatient** | 3 rejections | 25% per gold under | Leaves if offer ≥4g under; Unavailable 5 turns after leaving |
+| **Generous** | 7 rejections | 15% per gold under | 15% discount; Rejects offers above base cost |
+
+---
+
+#### **Detailed Decision-Making Algorithm Flow**
 
 All traders follow this general flow in `submitCounterOffer()`:
-1. **Validation**: Check if trader exists and offer is valid
-2. **Type-specific logic**: Each trader type has different acceptance thresholds
-3. **Counter tracking**: Each rejection increments a counter
-4. **Patience check**: After threshold rejections, trader leaves
-5. **Trade completion**: If accepted, resources are exchanged and new offer generated
 
-**Regular Trader Logic** (Lines 800-838):
-- Calculates `priceDiff = baseCost - counterGold`
-- If `counterGold >= baseCost`, accepts immediately
-- If `priceDiff <= baseCost * 0.1` (within 10%), accepts
-- Otherwise rejects and increments counter
-- After 3 rejections, leaves
+1. **Validation Phase**:
+   - Check if trader exists and is available
+   - Check if offer is valid (counterGold > 0)
+   - Check if player has enough gold
 
-**Impatient Trader Logic** (Lines 780-799):
-- If `counterGold > baseCost`, accepts immediately
-- If `priceDiff >= 4` (very low offer), leaves immediately offended
-- If `priceDiff <= baseCost * 0.15` (within 15%), accepts
-- Otherwise rejects and increments counter
-- After 2 rejections, leaves
-- Sets unavailable for 5 turns when leaving
+2. **Type-Specific Logic Phase**:
+   - Each trader type has different acceptance thresholds and probability calculations
+   - Generous trader checks for overpayment first
+   - Impatient trader checks for insultingly low offers first
 
-**Generous Trader Logic** (Lines 743-778):
-- If `counterGold > baseCost`, rejects (doesn't want to scam)
-- If `counterGold === baseCost`, accepts immediately
-- If `counterGold >= baseCost * 0.75`, uses probability: `successRate = 1 - 0.15 * priceDiff`
-- Otherwise rejects and increments counter
-- After 4 rejections, leaves
+3. **Probability Calculation Phase** (if offer is below base cost):
+   - Calculate `priceDiff = baseCost - counterGold`
+   - Calculate `successRate` using trader-specific formula:
+     - Regular: `1 - (0.2 × priceDiff)`
+     - Impatient: `1 - (0.25 × priceDiff)`
+     - Generous: `1 - (0.15 × priceDiff)`
+   - Generate random number and compare to success rate
+
+4. **Counter Tracking Phase**:
+   - Each rejection increments the trader's internal counter
+   - Successful trade resets counter to 0
+
+5. **Patience Check Phase**:
+   - If counter exceeds trader's patience threshold, trader leaves permanently
+   - Impatient trader also sets unavailable status for 5 turns
+
+6. **Trade Completion Phase** (if accepted):
+   - Player's gold is deducted
+   - Player receives item (food, water, or life)
+   - Trader state resets to idle
+   - New offer is generated for next trade
 
 **Code Location:**
 - **File**: `src/App.tsx`
