@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Brain } from './brain';
+import { BrainPersonality, DIFFICULTY_CONFIG, Difficulty, BRAIN_THRESHOLD_MULTIPLIERS } from './types';
 
 interface AutoPlayControlsProps {
-  game: any;
+  game: { getGameState: () => any; attemptMove: (dx: number, dy: number) => any } | null;
   onMove: () => void;
   disabled?: boolean;
 }
-
-type BrainPersonality = 'greedy' | 'explorer' | 'aggressive';
 
 export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({ 
   game, 
   onMove,
   disabled = false 
 }) => {
-  const [selectedPersonality, setSelectedPersonality] = useState<BrainPersonality>('greedy');
+  const [selectedPersonality, setSelectedPersonality] = useState<BrainPersonality>(BrainPersonality.GREEDY);
   const [brain, setBrain] = useState<Brain>(new Brain(selectedPersonality));
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(1000);
@@ -22,10 +21,13 @@ export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({
 
   // Calculate thresholds based on difficulty (inferred from map size)
   const getStartingResources = (mapSize: number): { food: number; water: number } => {
-    if (mapSize === 12) return { food: 100, water: 100 }; // easy
-    if (mapSize === 16) return { food: 75, water: 75 };  // medium
-    if (mapSize === 20) return { food: 50, water: 50 };  // hard
-    return { food: 100, water: 100 }; // default
+    for (const config of Object.values(DIFFICULTY_CONFIG)) {
+      if (config.size === mapSize) {
+        return { food: config.food, water: config.water };
+      }
+    }
+    // Default to easy if unknown
+    return { food: DIFFICULTY_CONFIG[Difficulty.EASY].food, water: DIFFICULTY_CONFIG[Difficulty.EASY].water };
   };
 
   const gameState = game?.getGameState();
@@ -33,8 +35,8 @@ export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({
   const startingResources = getStartingResources(mapSize);
   
   // Calculate thresholds for each brain type
-  const explorerThreshold = Math.round(startingResources.food * 0.5);
-  const aggressiveCritical = Math.round(startingResources.food * 0.15);
+  const explorerThreshold = Math.round(startingResources.food * BRAIN_THRESHOLD_MULTIPLIERS.EXPLORER_SAFE);
+  const aggressiveCritical = Math.round(startingResources.food * BRAIN_THRESHOLD_MULTIPLIERS.AGGRESSIVE_CRITICAL);
 
   useEffect(() => {
     const newBrain = new Brain(selectedPersonality);
@@ -102,19 +104,19 @@ export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({
         </div>
         
         <div className="offer-display mb-3" style={{ padding: '0.5rem' }}>
-          {selectedPersonality === 'greedy' && (
+          {selectedPersonality === BrainPersonality.GREEDY && (
             <div>
               <div className="text-green-400 font-bold mb-1" style={{ fontSize: '0.7rem' }}>Greedy Strategy:</div>
               <div className="text-gray-300" style={{ fontSize: '0.65rem', lineHeight: '1.3' }}>Obsessively collects every visible resource (food, water, gold) before pursuing the trophy. Ignores resource levels and thresholds - if resources are visible, they must be collected first. Only moves toward the trophy when no resources are in sight.</div>
             </div>
           )}
-          {selectedPersonality === 'explorer' && (
+          {selectedPersonality === BrainPersonality.EXPLORER && (
             <div>
               <div className="text-yellow-400 font-bold mb-1" style={{ fontSize: '0.7rem' }}>Explorer Strategy:</div>
               <div className="text-gray-300" style={{ fontSize: '0.65rem', lineHeight: '1.3' }}>Maintains resources at 50% of starting levels ({explorerThreshold}+). Gathers resources to stay above threshold, but prioritizes the trophy when it's visible. Balances resource management with trophy pursuit.</div>
             </div>
           )}
-          {selectedPersonality === 'aggressive' && (
+          {selectedPersonality === BrainPersonality.AGGRESSIVE && (
             <div>
               <div className="text-red-400 font-bold mb-1" style={{ fontSize: '0.7rem' }}>Aggressive Strategy:</div>
               <div className="text-gray-300" style={{ fontSize: '0.65rem', lineHeight: '1.3' }}>Single-mindedly pursues the trophy, ignoring resources unless critically low (below {aggressiveCritical}). Takes calculated risks and explores aggressively to find the trophy. Only stops for resources when survival is at stake.</div>
@@ -127,9 +129,9 @@ export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({
   <div className="grid grid-cols-3 gap-1">
     {/* Row 1 */}
     <button
-      onClick={() => setSelectedPersonality('greedy')}
+      onClick={() => setSelectedPersonality(BrainPersonality.GREEDY)}
       className={`px-2 py-1.5 rounded text-xs font-bold ${
-        selectedPersonality === 'greedy'
+        selectedPersonality === BrainPersonality.GREEDY
           ? 'bg-green-600 text-white'
           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
       }`}
@@ -138,9 +140,9 @@ export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({
       Greedy
     </button>
     <button
-      onClick={() => setSelectedPersonality('explorer')}
+      onClick={() => setSelectedPersonality(BrainPersonality.EXPLORER)}
       className={`px-2 py-1.5 rounded text-xs font-bold ${
-        selectedPersonality === 'explorer'
+        selectedPersonality === BrainPersonality.EXPLORER
           ? 'bg-yellow-600 text-white'
           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
       }`}
@@ -149,9 +151,9 @@ export const AutoPlayControls: React.FC<AutoPlayControlsProps> = ({
       Explorer
     </button>
     <button
-      onClick={() => setSelectedPersonality('aggressive')}
+      onClick={() => setSelectedPersonality(BrainPersonality.AGGRESSIVE)}
       className={`px-2 py-1.5 rounded text-xs font-bold ${
-        selectedPersonality === 'aggressive'
+        selectedPersonality === BrainPersonality.AGGRESSIVE
           ? 'bg-red-600 text-white'
           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
       }`}

@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { AutoPlayControls } from './autoplay';
+import { TerrainType, ResourceType, Difficulty, VisionType, TraderType, TradeItem, TERRAIN_COSTS, TERRAIN_COLORS, RESOURCE_ICONS, DIFFICULTY_CONFIG, VISION_RADIUS_CONFIG, DEFAULT_PLAYER_LIVES, DEFAULT_VISION_RADIUS } from './types';
+import type { PlayerResources, TraderOffer, MoveCost } from './types';
+import { TraderService } from './trader-service';
+import type { MoveResult, CounterOfferResult } from './game-types';
 
 class GameObject {
   x: number;
@@ -24,102 +28,110 @@ class GameObject {
 }
 
 export class Terrain {
-  name: string;
-  color: string;
+  protected readonly name: TerrainType;
+  protected readonly color: string;
 
-  constructor(name: string, color: string) {
+  constructor(name: TerrainType, color: string) {
     this.name = name;
     this.color = color;
   }
 
-  getCost(): { food: number; water: number } {
+  getCost(): MoveCost {
     throw new Error("getCost() must be implemented by subclass");
   }
 
-  getColor() {
+  getColor(): string {
     return this.color;
   }
 
-  isWalkable() {
+  getName(): TerrainType {
+    return this.name;
+  }
+
+  isWalkable(): boolean {
     return true;
   }
 }
 
 class GrassTerrain extends Terrain {
   constructor() {
-    super('grass', '#7cb342');
+    super(TerrainType.GRASS, TERRAIN_COLORS[TerrainType.GRASS]);
   }
 
-  getCost() {
-    return { food: 1, water: 1 };
+  getCost(): MoveCost {
+    return TERRAIN_COSTS[TerrainType.GRASS];
   }
 }
 
 class DesertTerrain extends Terrain {
   constructor() {
-    super('desert', '#fdd835');
+    super(TerrainType.DESERT, TERRAIN_COLORS[TerrainType.DESERT]);
   }
 
-  getCost() {
-    return { food: 1, water: 3 };
+  getCost(): MoveCost {
+    return TERRAIN_COSTS[TerrainType.DESERT];
   }
 }
 
 class ForestTerrain extends Terrain {
   constructor() {
-    super('forest', '#2e7d32');
+    super(TerrainType.FOREST, TERRAIN_COLORS[TerrainType.FOREST]);
   }
 
-  getCost() {
-    return { food: 2, water: 1 };
+  getCost(): MoveCost {
+    return TERRAIN_COSTS[TerrainType.FOREST];
   }
 }
 
 class MountainTerrain extends Terrain {
   constructor() {
-    super('mountain', '#616161');
+    super(TerrainType.MOUNTAIN, TERRAIN_COLORS[TerrainType.MOUNTAIN]);
   }
 
-  getCost() {
-    return { food: 3, water: 2 };
+  getCost(): MoveCost {
+    return TERRAIN_COSTS[TerrainType.MOUNTAIN];
   }
 }
 
 class SwampTerrain extends Terrain {
   constructor() {
-    super('swamp', '#558b2f');
+    super(TerrainType.SWAMP, TERRAIN_COLORS[TerrainType.SWAMP]);
   }
 
-  getCost() {
-    return { food: 2, water: 2 };
+  getCost(): MoveCost {
+    return TERRAIN_COSTS[TerrainType.SWAMP];
   }
 }
 
 class WallTerrain extends Terrain {
   constructor() {
-    super('wall', '#5d4037');
+    super(TerrainType.WALL, TERRAIN_COLORS[TerrainType.WALL]);
   }
 
-  getCost() {
-    return { food: 0, water: 0 };
+  getCost(): MoveCost {
+    return TERRAIN_COSTS[TerrainType.WALL];
   }
 
-  isWalkable() {
+  isWalkable(): boolean {
     return false;
   }
 }
 
 export class Resource {
-  type: string;
-  icon: string;
+  protected readonly type: ResourceType;
+  protected readonly icon: string;
 
-  constructor(type: string, icon: string) {
+  constructor(type: ResourceType, icon: string) {
     this.type = type;
     this.icon = icon;
   }
 
-  getIcon() {
+  getIcon(): string {
     return this.icon;
+  }
+
+  getType(): ResourceType {
+    return this.type;
   }
 
   applyEffect(_playerResources: PlayerResources): PlayerResources {
@@ -131,23 +143,9 @@ export class Resource {
   }
 }
 
-type PlayerResources = {
-  food: number;
-  water: number;
-  gold: number;
-  lives: number;
-  level?: number;
-};
-
-type TraderOffer = {
-  item: 'food' | 'water' | 'life';
-  amount: number;
-  baseCost: number;
-};
-
 class SpringResource extends Resource {
   constructor() {
-    super('spring', '💧');
+    super(ResourceType.SPRING, RESOURCE_ICONS[ResourceType.SPRING]);
   }
 
   applyEffect(playerResources: PlayerResources): PlayerResources {
@@ -164,7 +162,7 @@ class SpringResource extends Resource {
 
 class AnimalResource extends Resource {
   constructor() {
-    super('animal', '🦌');
+    super(ResourceType.ANIMAL, RESOURCE_ICONS[ResourceType.ANIMAL]);
   }
 
   applyEffect(playerResources: PlayerResources): PlayerResources {
@@ -181,7 +179,7 @@ class AnimalResource extends Resource {
 
 class GoldResource extends Resource {
   constructor() {
-    super('gold', '💰');
+    super(ResourceType.GOLD, RESOURCE_ICONS[ResourceType.GOLD]);
   }
 
   applyEffect(playerResources: PlayerResources): PlayerResources {
@@ -198,7 +196,7 @@ class GoldResource extends Resource {
 
 class TrophyResource extends Resource {
   constructor() {
-    super('trophy', '🏆');
+    super(ResourceType.TROPHY, RESOURCE_ICONS[ResourceType.TROPHY]);
   }
 
   applyEffect(playerResources: PlayerResources): PlayerResources {
@@ -211,13 +209,13 @@ class TrophyResource extends Resource {
 }
 
 class TraderResource extends Resource {
-  traderType: 'regular' | 'impatient' | 'generous';
-  state: 'idle' | 'awaitOffer' | 'unavailable';
-  counterOfferCount: number;
-  unavailableUntilTurn: number;
+  private readonly traderType: TraderType;
+  private state: 'idle' | 'awaitOffer' | 'unavailable';
+  private counterOfferCount: number;
+  private unavailableUntilTurn: number;
 
-  constructor(traderType: 'regular' | 'impatient' | 'generous' = 'regular') {
-    super('trader', '🧙');
+  constructor(traderType: TraderType = TraderType.REGULAR) {
+    super(ResourceType.TRADER, RESOURCE_ICONS[ResourceType.TRADER]);
     this.traderType = traderType;
     this.state = 'idle';
     this.counterOfferCount = 0;
@@ -305,11 +303,11 @@ export class Tile {
 }
 
 class Player extends GameObject {
-  food: number;
-  water: number;
-  gold: number;
-  visionRadius: number;
-  lives: number;
+  private food: number;
+  private water: number;
+  private gold: number;
+  private readonly visionRadius: number;
+  private lives: number;
 
   constructor(
     x: number,
@@ -317,8 +315,8 @@ class Player extends GameObject {
     food: number,
     water: number,
     gold: number,
-    visionRadius = 5,
-    lives = 3,
+    visionRadius: number = DEFAULT_VISION_RADIUS,
+    lives: number = DEFAULT_PLAYER_LIVES,
   ) {
     super(x, y);
     this.food = food;
@@ -376,19 +374,55 @@ class Player extends GameObject {
     this.lives--;
   }
 
-  getLives() {
+  getLives(): number {
     return this.lives;
+  }
+
+  getFood(): number {
+    return this.food;
+  }
+
+  getWater(): number {
+    return this.water;
+  }
+
+  getGold(): number {
+    return this.gold;
+  }
+
+  setFood(food: number): void {
+    this.food = food;
+  }
+
+  setWater(water: number): void {
+    this.water = water;
+  }
+
+  addFood(amount: number): void {
+    this.food += amount;
+  }
+
+  addWater(amount: number): void {
+    this.water += amount;
+  }
+
+  setGold(gold: number): void {
+    this.gold = gold;
+  }
+
+  subtractGold(amount: number): void {
+    this.gold -= amount;
   }
 }
 
 class GameMap {
-  size: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-  tiles: Tile[][];
-  trophyX: number;
-  trophyY: number;
+  private readonly size: number;
+  private readonly difficulty: Difficulty;
+  private readonly tiles: Tile[][];
+  private readonly trophyX: number;
+  private readonly trophyY: number;
 
-  constructor(size: number, difficulty: 'easy' | 'medium' | 'hard') {
+  constructor(size: number, difficulty: Difficulty) {
     this.size = size;
     this.difficulty = difficulty;
     this.trophyX = 1 + Math.floor(Math.random() * (this.size - 2 - 1 + 1));
@@ -447,9 +481,9 @@ class GameMap {
 
     if (rand < rate.trader) {
       const traderRand = Math.random();
-      if (traderRand < 0.33) return new TraderResource('regular');
-      if (traderRand < 0.66) return new TraderResource('impatient');
-      return new TraderResource('generous');
+      if (traderRand < 0.33) return new TraderResource(TraderType.REGULAR);
+      if (traderRand < 0.66) return new TraderResource(TraderType.IMPATIENT);
+      return new TraderResource(TraderType.GENEROUS);
     }
     if (rand < rate.trader + rate.spring) return new SpringResource();
     if (rand < rate.trader + rate.spring + rate.animal) return new AnimalResource();
@@ -466,13 +500,16 @@ class GameMap {
     return x >= 0 && y >= 0 && x < this.size && y < this.size;
   }
 
-  getTiles() {
+  getSize(): number {
+    return this.size;
+  }
+
+  getTiles(): Tile[][] {
     return this.tiles;
   }
 }
 
-type VisionType = 'focused' | 'cautious' | 'keen-eyed' | 'far-sight';
-type Difficulty = 'easy' | 'medium' | 'hard';
+// Using enums from types.ts instead of local type declarations
 
 type GameStateSnapshot = {
   map: Tile[][];
@@ -542,42 +579,20 @@ class Game {
     this.activeOffer = null;
   }
 
-  generateTraderOffer(traderType: TraderResource['traderType']): TraderOffer {
-    const basePool: TraderOffer[] = [
-      { item: 'food', amount: 25, baseCost: 6 },
-      { item: 'food', amount: 35, baseCost: 8 },
-      { item: 'water', amount: 25, baseCost: 6 },
-      { item: 'water', amount: 35, baseCost: 8 },
-      { item: 'life', amount: 1, baseCost: 14 },
-    ];
-    const offer = { ...basePool[Math.floor(Math.random() * basePool.length)] };
-    if (traderType === 'generous') {
-      offer.baseCost = Math.max(3, Math.round(offer.baseCost * 0.85));
-    }
-    return offer;
+  generateTraderOffer(traderType: TraderType): TraderOffer {
+    // Delegate to TraderService (Single Responsibility Principle)
+    return TraderService.generateOffer(traderType);
   }
 
-  getVisionRadius() {
-    const visionConfig: Record<VisionType, number> = {
-      'focused': 3,
-      'cautious': 4,
-      'keen-eyed': 5,
-      'far-sight': 8,
-    };
-    return visionConfig[this.visionType] ?? 5;
+  getVisionRadius(): number {
+    return VISION_RADIUS_CONFIG[this.visionType] ?? DEFAULT_VISION_RADIUS;
   }
 
-  getDifficultyConfig() {
-    const configs: Record<Difficulty, { size: number; food: number; water: number }> =
-      {
-        easy: { size: 12, food: 100, water: 100 },
-        medium: { size: 16, food: 75, water: 75 },
-        hard: { size: 20, food: 50, water: 50 },
-      };
-    return configs[this.difficulty] || configs.easy;
+  getDifficultyConfig(): { size: number; food: number; water: number } {
+    return DIFFICULTY_CONFIG[this.difficulty] || DIFFICULTY_CONFIG[Difficulty.EASY];
   }
 
-  attemptMove(dx: number, dy: number) {
+  attemptMove(dx: number, dy: number): MoveResult | null {
     if (this.gameOver || this.gameWon) return null;
     this.currentTurn++;
     const pos = this.player.getPosition();
@@ -591,8 +606,8 @@ class Game {
     if (!this.player.hasEnoughResources(cost.food, cost.water)) {
       if (this.player.getLives() > 0) {
         this.player.loseLife();
-        this.player.food += 5;
-        this.player.water += 5;
+        this.player.addFood(5);
+        this.player.addWater(5);
 
         return {
           lostLife: true,
@@ -608,21 +623,21 @@ class Game {
     this.player.move(newX, newY);
     const resource = tile.getResource();
     if (resource) {
-      if (resource.type === 'trophy') {
+      if (resource.getType() === ResourceType.TROPHY) {
         this.gameWon = true;
-        this.player.food += 10;
-        this.player.water += 10;
-        this.player.gold += 5;
+        this.player.addFood(10);
+        this.player.addWater(10);
+        this.player.setGold(this.player.getGold() + 5);
 
         return {
           gameWon: true,
           message: `Level ${this.currentLevel} Complete! +10 Food, +10 Water, +5 Gold!`,
-          resourceCollected: resource.type,
+          resourceCollected: resource.getType(),
           nextLevel: true,
         };
       }
 
-      if (resource.type === 'trader') {
+      if (resource.getType() === ResourceType.TRADER) {
         const trader = resource as TraderResource;
         if (!trader.isAvailable(this.currentTurn)) {
           return {
@@ -642,33 +657,33 @@ class Game {
         };
       }
 
-      if (resource.type === 'spring') {
+      if (resource.getType() === ResourceType.SPRING) {
         const waterByDifficulty: Record<Difficulty, number> = {
           easy: 20,
           medium: 15,
           hard: 10,
         };
         const gain = waterByDifficulty[this.difficulty] ?? 15;
-        this.player.water += gain;
+        this.player.addWater(gain);
         tile.removeResource();
         return {
           message: `+${gain} Water from spring!`,
-          resourceCollected: resource.type,
+          resourceCollected: resource.getType(),
         };
       }
 
-      if (resource.type === 'animal') {
+      if (resource.getType() === ResourceType.ANIMAL) {
         const foodByDifficulty: Record<Difficulty, number> = {
           easy: 20,
           medium: 15,
           hard: 10,
         };
         const gain = foodByDifficulty[this.difficulty] ?? 15;
-        this.player.food += gain;
+        this.player.addFood(gain);
         tile.removeResource();
         return {
           message: `+${gain} Food from hunting!`,
-          resourceCollected: resource.type,
+          resourceCollected: resource.getType(),
         };
       }
 
@@ -677,21 +692,21 @@ class Game {
 
       return {
         message: resource.getMessage(),
-        resourceCollected: resource.type,
+        resourceCollected: resource.getType(),
       };
     }
     return { success: true };
   }
 
-  submitCounterOffer(counterGold: number) {
+  submitCounterOffer(counterGold: number): CounterOfferResult {
     if (!this.traderTile || !this.activeTrader || !this.activeOffer) {
       return { error: 'No trader nearby!' };
     }
     if (counterGold <= 0) {
       return { error: 'Counter offer must be greater than 0 gold.' };
     }
-    if (this.player.gold < counterGold) {
-      return { error: `You only have ${this.player.gold} gold.` };
+    if (this.player.getGold() < counterGold) {
+      return { error: `You only have ${this.player.getGold()} gold.` };
     }
 
     const trader = this.activeTrader;
@@ -701,9 +716,9 @@ class Game {
     const priceDiff = baseCost - counterGold;
 
     const completeTrade = (goldToPay: number) => {
-      this.player.gold -= goldToPay;
-      if (item === 'food') this.player.food += amount;
-      if (item === 'water') this.player.water += amount;
+      this.player.subtractGold(goldToPay);
+      if (item === TradeItem.FOOD) this.player.addFood(amount);
+      if (item === TradeItem.WATER) this.player.addWater(amount);
       if (item === 'life') this.player.addLife();
 
       trader.setState('idle');
@@ -725,7 +740,7 @@ class Game {
       };
     };
 
-    if (traderType === 'generous') {
+    if (traderType === TraderType.GENEROUS) {
       if (counterGold > baseCost) {
         return {
           error: `The generous trader stops you. They don't want to scam you and only want ${baseCost} gold.`,
@@ -846,7 +861,7 @@ class Game {
       resources: this.player.getResources(),
       gameOver: this.gameOver,
       gameWon: this.gameWon,
-      mapSize: this.map.size,
+      mapSize: this.map.getSize(),
       visionRadius: this.player.getVisionRadius(),
       playerInstance: this.player,
       currentLevel: this.currentLevel,
@@ -899,29 +914,29 @@ class Game {
     this.leaveTrader();
   }
 
-  acceptCurrentOffer() {
+  acceptCurrentOffer(): CounterOfferResult {
     if (!this.traderTile || !this.activeTrader || !this.activeOffer) {
       return { error: 'No trader nearby!' };
     }
 
     const { item, amount, baseCost } = this.activeOffer;
 
-    if (this.player.gold < baseCost) {
+    if (this.player.getGold() < baseCost) {
       return { error: `You need ${baseCost} gold to accept this trade.` };
     }
 
-    this.player.gold -= baseCost;
-    if (item === 'food') this.player.food += amount;
-    if (item === 'water') this.player.water += amount;
-    if (item === 'life') this.player.addLife();
+    this.player.subtractGold(baseCost);
+    if (item === TradeItem.FOOD) this.player.addFood(amount);
+    if (item === TradeItem.WATER) this.player.addWater(amount);
+    if (item === TradeItem.LIFE) this.player.addLife();
 
     this.activeTrader.setState('idle');
     this.activeTrader.resetCounter();
 
     const rewardLabel =
-      item === 'life'
+      item === TradeItem.LIFE
         ? 'gained +1 Life'
-        : `gained +${amount} ${item === 'food' ? 'Food' : 'Water'}`;
+        : `gained +${amount} ${item === TradeItem.FOOD ? 'Food' : 'Water'}`;
 
     const message = `Trade accepted! You ${rewardLabel} for ${baseCost} gold.`;
 
@@ -983,7 +998,7 @@ const TileGame: React.FC = () => {
   const nextLevel = () => {
     if (!game) return;
     const resources = game.getCurrentResources();
-    startGame(difficulty ?? 'easy', visionType ?? 'keen-eyed', resources);
+    startGame(difficulty ?? Difficulty.EASY, visionType ?? VisionType.KEEN_EYED, resources);
   };
 
   const handleMove = (dx: number, dy: number) => {
@@ -1029,7 +1044,7 @@ const TileGame: React.FC = () => {
     setGameState(game.getGameState());
     if ('error' in result && result.error) {
       setTradeFeedback(result.error);
-      if ((result as any).traderGone) {
+      if ('traderGone' in result && result.traderGone) {
         setShowTradeMenu(false);
         setTraderType(null);
         setCurrentOffer(null);
@@ -1122,7 +1137,7 @@ const TileGame: React.FC = () => {
                 style={{ maxWidth: 720, margin: '0 auto' }}
               >
                 <button
-                  onClick={() => setDifficulty('easy')}
+                  onClick={() => setDifficulty(Difficulty.EASY)}
                   className="px-8 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xl font-bold transition"
                 >
                   Easy
@@ -1132,7 +1147,7 @@ const TileGame: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => setDifficulty('medium')}
+                  onClick={() => setDifficulty(Difficulty.MEDIUM)}
                   className="px-8 py-4 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-xl font-bold transition"
                 >
                   Medium
@@ -1142,7 +1157,7 @@ const TileGame: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => setDifficulty('hard')}
+                  onClick={() => setDifficulty(Difficulty.HARD)}
                   className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xl font-bold transition"
                 >
                   Hard
@@ -1160,7 +1175,7 @@ const TileGame: React.FC = () => {
                 style={{ maxWidth: 720, margin: '0 auto' }}
               >
                 <button
-                  onClick={() => startGame(difficulty, 'focused')}
+                  onClick={() => startGame(difficulty, VisionType.FOCUSED)}
                   className="px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xl font-bold transition"
                 >
                   Focused Vision
@@ -1169,7 +1184,7 @@ const TileGame: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => startGame(difficulty, 'cautious')}
+                  onClick={() => startGame(difficulty, VisionType.CAUTIOUS)}
                   className="px-8 py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xl font-bold transition"
                 >
                   Cautious Vision
@@ -1178,7 +1193,7 @@ const TileGame: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => startGame(difficulty, 'keen-eyed')}
+                  onClick={() => startGame(difficulty, VisionType.KEEN_EYED)}
                   className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xl font-bold transition"
                 >
                   Keen-Eyed Vision
@@ -1187,7 +1202,7 @@ const TileGame: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => startGame(difficulty, 'far-sight')}
+                  onClick={() => startGame(difficulty, VisionType.FAR_SIGHT)}
                   className="px-8 py-4 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-xl font-bold transition"
                 >
                   Far-Sight Vision
@@ -1367,9 +1382,7 @@ const TileGame: React.FC = () => {
                     <button
                       onClick={() => {
                         if (!game) return;
-                        const result = (game as any).acceptCurrentOffer
-                          ? (game as any).acceptCurrentOffer()
-                          : { error: 'Accept not available.' };
+                        const result = game.acceptCurrentOffer();
                         setGameState(game.getGameState());
                         if ('error' in result && result.error) {
                           setTradeFeedback(result.error);
@@ -1619,12 +1632,13 @@ const TileGame: React.FC = () => {
                   {terrainLegend.map((terrain) => {
                     const cost = terrain.getCost();
                     const isWalkable = terrain.isWalkable();
+                    const terrainName = terrain.getName();
                     const label =
-                      terrain.name.charAt(0).toUpperCase() + terrain.name.slice(1);
+                      terrainName.charAt(0).toUpperCase() + terrainName.slice(1);
 
                     return (
                       <div
-                        key={terrain.name}
+                        key={terrain.getName()}
                         style={{
                           display: 'flex',
                           alignItems: 'center',

@@ -1,11 +1,13 @@
-type Tile = any;
+import type { IGameState, ITile, IVision } from './interfaces';
+import type { MoveCost } from './types';
+import { ResourceType } from './types';
 
 export interface PathStep {
   x: number;
   y: number;
   dx: number;
   dy: number;
-  cost: { food: number; water: number };
+  cost: MoveCost;
   totalCost: number;
 }
 
@@ -16,15 +18,15 @@ export interface VisionResult {
   distance: number;
 }
 
-export class Vision {
-  private gameState: any;
-  private playerX: number;
-  private playerY: number;
-  private visionRadius: number;
-  private map: Tile[][];
-  private mapSize: number;
+export class Vision implements IVision {
+  private readonly gameState: IGameState;
+  private readonly playerX: number;
+  private readonly playerY: number;
+  private readonly visionRadius: number;
+  private readonly map: ITile[][];
+  private readonly mapSize: number;
 
-  constructor(gameState: any) {
+  constructor(gameState: IGameState) {
     this.gameState = gameState;
     this.playerX = gameState.player.x;
     this.playerY = gameState.player.y;
@@ -33,8 +35,8 @@ export class Vision {
     this.mapSize = gameState.mapSize;
   }
 
-  getVisibleTiles(): Array<{x: number, y: number, tile: Tile}> {
-    const visible: Array<{x: number, y: number, tile: Tile}> = [];
+  getVisibleTiles(): Array<{x: number, y: number, tile: ITile}> {
+    const visible: Array<{x: number, y: number, tile: ITile}> = [];
     
     for (let dy = -this.visionRadius; dy <= this.visionRadius; dy++) {
       for (let dx = -this.visionRadius; dx <= this.visionRadius; dx++) {
@@ -108,15 +110,15 @@ export class Vision {
     return null;
   }
 
-  private findNthClosestResource(resourceType: string, nthClosest: number = 1): VisionResult | null {
+  private findNthClosestResource(resourceType: ResourceType, nthClosest: number = 1): VisionResult | null {
     const visibleTiles = this.getVisibleTiles();
     const resources: Array<{
-      x: number, y: number, distance: number, tile: Tile, moveCost: number
+      x: number, y: number, distance: number, tile: ITile, moveCost: number
     }> = [];
     
     for (const {x, y, tile} of visibleTiles) {
       const resource = tile.getResource();
-      if (resource && resource.type === resourceType) {
+      if (resource && resource.getType() === resourceType) {
         const distance = Math.abs(x - this.playerX) + Math.abs(y - this.playerY);
         const moveCost = tile.getMoveCost();
         const totalMoveCost = moveCost.food + moveCost.water;
@@ -150,19 +152,19 @@ export class Vision {
   }
 
   closestFood(): VisionResult | null {
-    return this.findNthClosestResource('animal', 1);
+    return this.findNthClosestResource(ResourceType.ANIMAL, 1);
   }
 
   closestWater(): VisionResult | null {
-    return this.findNthClosestResource('spring', 1);
+    return this.findNthClosestResource(ResourceType.SPRING, 1);
   }
 
   closestGold(): VisionResult | null {
-    return this.findNthClosestResource('gold', 1);
+    return this.findNthClosestResource(ResourceType.GOLD, 1);
   }
 
   closestTrader(): VisionResult | null {
-    return this.findNthClosestResource('trader', 1);
+    return this.findNthClosestResource(ResourceType.TRADER, 1);
   }
 
   easiestPath(): VisionResult | null {
@@ -198,19 +200,19 @@ export class Vision {
   }
 
   secondClosestFood(): VisionResult | null {
-    return this.findNthClosestResource('animal', 2);
+    return this.findNthClosestResource(ResourceType.ANIMAL, 2);
   }
 
   secondClosestWater(): VisionResult | null {
-    return this.findNthClosestResource('spring', 2);
+    return this.findNthClosestResource(ResourceType.SPRING, 2);
   }
 
   secondClosestGold(): VisionResult | null {
-    return this.findNthClosestResource('gold', 2);
+    return this.findNthClosestResource(ResourceType.GOLD, 2);
   }
 
   secondClosestTrader(): VisionResult | null {
-    return this.findNthClosestResource('trader', 2);
+    return this.findNthClosestResource(ResourceType.TRADER, 2);
   }
 
   scanArea() {
@@ -227,11 +229,12 @@ export class Vision {
       
       const distance = Math.abs(x - this.playerX) + Math.abs(y - this.playerY);
       
-      switch (resource.type) {
-        case 'animal': foodTiles.push({x, y, distance}); break;
-        case 'spring': waterTiles.push({x, y, distance}); break;
-        case 'gold': goldTiles.push({x, y, distance}); break;
-        case 'trader': traderTiles.push({x, y, distance}); break;
+      const resourceType = resource.getType();
+      switch (resourceType) {
+        case ResourceType.ANIMAL: foodTiles.push({x, y, distance}); break;
+        case ResourceType.SPRING: waterTiles.push({x, y, distance}); break;
+        case ResourceType.GOLD: goldTiles.push({x, y, distance}); break;
+        case ResourceType.TRADER: traderTiles.push({x, y, distance}); break;
       }
     }
     
