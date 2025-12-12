@@ -1094,33 +1094,233 @@ All traders follow this general flow in `submitCounterOffer()`:
 
 **Number of vision types: 4**
 
-The project implements 4 different vision types, each affecting the player's visibility radius and strategic planning ability:
+The project implements 4 different vision types, each affecting the player's visibility radius and strategic planning ability. Vision determines how far the player can see on the map, which directly impacts resource discovery, pathfinding, and decision-making. The vision system uses a circular radius calculation to determine visible tiles.
 
-1. **Focused** (`VisionType.FOCUSED`) - 3 tile radius
-   - **Description**: Limited visibility - tight, tactical view
-   - **Gameplay impact**: Player can only see immediate surroundings, requires careful exploration
-   - **Use case**: More challenging gameplay, forces conservative movement
+---
 
-2. **Cautious** (`VisionType.CAUTIOUS`) - 4 tile radius
-   - **Description**: Moderate visibility - watch your surroundings
-   - **Gameplay impact**: Better than focused but still limited, allows moderate planning
-   - **Use case**: Balanced difficulty, moderate strategic planning
+#### **1. Focused** (`VisionType.FOCUSED`)
 
-3. **Keen-Eyed** (`VisionType.KEEN_EYED`) - 5 tile radius
-   - **Description**: Standard visibility - balanced view
-   - **Gameplay impact**: Default vision, allows good strategic planning
-   - **Use case**: Standard gameplay experience, good balance
+**Vision Radius**: **3 tiles**
 
-4. **Far-Sight** (`VisionType.FAR_SIGHT`) - 8 tile radius
-   - **Description**: Maximum visibility - see danger and opportunities early
-   - **Gameplay impact**: Can see far ahead, allows long-term planning
-   - **Use case**: Easier gameplay, maximum strategic advantage
+**Description**: Limited visibility with a tight, tactical view. The player can only see their immediate surroundings, creating a challenging, exploration-focused gameplay experience.
 
-**Implementation Details:**
-- Vision radius is stored in `VISION_RADIUS_CONFIG` constant object
-- Vision type is set when starting a game and cannot be changed during gameplay
-- Vision affects what tiles the player can see, which resources are visible, and pathfinding calculations
-- The `Vision` class uses the radius to calculate visible tiles in a circular area around the player
+**How Vision Works:**
+- Vision is calculated using **circular distance** from the player's position
+- Formula: `distanceSquared = dx² + dy²`
+- A tile is visible if: `distanceSquared ≤ visionRadius²` (in this case, `distanceSquared ≤ 9`)
+- This creates a circular vision area with radius 3
+
+**Gameplay Impact:**
+- **Visible Area**: Approximately **28 tiles** (3×3 area minus corners = ~28 walkable tiles)
+- **Resource Discovery**: Can only see resources within 3 tiles - must explore carefully
+- **Pathfinding**: Limited pathfinding range - can only plan 3 moves ahead
+- **Strategic Planning**: Very limited - must make decisions based on immediate surroundings only
+- **Risk Level**: **High** - cannot see dangers or opportunities far away
+
+**Example Scenario:**
+- Player at position (5, 5)
+- Can see tiles from (2, 2) to (8, 8) in a circular pattern
+- Resource at (10, 5) is **NOT visible** - must move closer to discover it
+- Trophy at (3, 3) is **visible** - can plan path to it
+
+**Use Case**: 
+- More challenging gameplay
+- Forces careful, methodical exploration
+- Requires conservative movement and resource management
+- Good for players who enjoy exploration and discovery
+
+**Code Location**: `src/types.ts` lines 39-46, 71-76
+
+---
+
+#### **2. Cautious** (`VisionType.CAUTIOUS`)
+
+**Vision Radius**: **4 tiles**
+
+**Description**: Moderate visibility that allows you to watch your surroundings. Better than Focused but still requires careful planning and exploration.
+
+**How Vision Works:**
+- Circular distance calculation: `distanceSquared ≤ 16` (4²)
+- Creates a circular vision area with radius 4
+
+**Gameplay Impact:**
+- **Visible Area**: Approximately **50 tiles** (4×4 area = ~50 walkable tiles)
+- **Resource Discovery**: Can see resources within 4 tiles - moderate exploration needed
+- **Pathfinding**: Moderate pathfinding range - can plan 4 moves ahead
+- **Strategic Planning**: Moderate - can see some opportunities and dangers
+- **Risk Level**: **Medium-High** - better awareness than Focused but still limited
+
+**Example Scenario:**
+- Player at position (5, 5)
+- Can see tiles from (1, 1) to (9, 9) in a circular pattern
+- Resource at (10, 5) is **NOT visible** - still need to explore
+- Trophy at (3, 3) is **visible** - can plan longer path
+- Can see more terrain types ahead, allowing better route planning
+
+**Use Case**: 
+- Balanced difficulty
+- Moderate strategic planning
+- Good middle ground between challenge and visibility
+- Suitable for players who want some challenge but not extreme difficulty
+
+**Code Location**: `src/types.ts` lines 39-46, 71-76
+
+---
+
+#### **3. Keen-Eyed** (`VisionType.KEEN_EYED`)
+
+**Vision Radius**: **5 tiles** (Default)
+
+**Description**: Standard visibility with a balanced view. This is the default vision type, providing a good balance between visibility and challenge.
+
+**How Vision Works:**
+- Circular distance calculation: `distanceSquared ≤ 25` (5²)
+- Creates a circular vision area with radius 5
+
+**Gameplay Impact:**
+- **Visible Area**: Approximately **78 tiles** (5×5 area = ~78 walkable tiles)
+- **Resource Discovery**: Can see resources within 5 tiles - good exploration range
+- **Pathfinding**: Good pathfinding range - can plan 5 moves ahead
+- **Strategic Planning**: Good - can see opportunities and plan routes effectively
+- **Risk Level**: **Medium** - balanced visibility for strategic gameplay
+
+**Example Scenario:**
+- Player at position (5, 5)
+- Can see tiles from (0, 0) to (10, 10) in a circular pattern
+- Resource at (10, 5) is **visible** - can see edge of map
+- Trophy at (3, 3) is **visible** - can plan optimal path
+- Can see terrain costs ahead, allowing efficient route planning
+
+**Use Case**: 
+- Standard gameplay experience
+- Good balance between challenge and visibility
+- Recommended for first-time players
+- Allows effective strategic planning without being too easy
+
+**Code Location**: `src/types.ts` lines 39-46, 71-76
+
+---
+
+#### **4. Far-Sight** (`VisionType.FAR_SIGHT`)
+
+**Vision Radius**: **8 tiles**
+
+**Description**: Maximum visibility that allows you to see danger and opportunities early. Provides the best strategic advantage and long-term planning capability.
+
+**How Vision Works:**
+- Circular distance calculation: `distanceSquared ≤ 64` (8²)
+- Creates a large circular vision area with radius 8
+
+**Gameplay Impact:**
+- **Visible Area**: Approximately **200 tiles** (8×8 area = ~200 walkable tiles)
+- **Resource Discovery**: Can see resources within 8 tiles - excellent exploration range
+- **Pathfinding**: Excellent pathfinding range - can plan 8+ moves ahead
+- **Strategic Planning**: Excellent - can see most of the map and plan optimal routes
+- **Risk Level**: **Low** - maximum awareness of surroundings
+
+**Example Scenario:**
+- Player at position (5, 5) on a 12×12 map
+- Can see tiles from (-3, -3) to (13, 13) in a circular pattern (clamped to map bounds)
+- Resource at (12, 5) is **visible** - can see across most of the map
+- Trophy at (3, 3) is **visible** - can plan very long optimal paths
+- Can see terrain costs for most of the map, allowing highly efficient route planning
+- Can identify resource clusters and plan collection routes
+
+**Use Case**: 
+- Easier gameplay
+- Maximum strategic advantage
+- Good for learning game mechanics
+- Allows long-term planning and optimization
+- Best for players who want to focus on strategy rather than exploration
+
+**Code Location**: `src/types.ts` lines 39-46, 71-76
+
+---
+
+#### **How Vision Calculation Works - Technical Details**
+
+The vision system uses a **circular distance calculation** to determine which tiles are visible:
+
+**Algorithm** (`src/vision.ts` lines 38-59):
+```typescript
+getVisibleTiles(): Array<{x: number, y: number, tile: ITile}> {
+  const visible = [];
+  
+  // Check all tiles within vision radius
+  for (let dy = -visionRadius; dy <= visionRadius; dy++) {
+    for (let dx = -visionRadius; dx <= visionRadius; dx++) {
+      const checkX = playerX + dx;
+      const checkY = playerY + dy;
+      
+      // Skip if outside map bounds
+      if (checkX < 0 || checkY < 0 || checkX >= mapSize || checkY >= mapSize) continue;
+      
+      // Calculate distance squared (more efficient than square root)
+      const distanceSquared = dx*dx + dy*dy;
+      
+      // Check if within circular radius
+      if (distanceSquared > visionRadius * visionRadius) continue;
+      
+      // Only include walkable tiles
+      const tile = map[checkY][checkX];
+      if (tile && tile.isWalkable()) {
+        visible.push({ x: checkX, y: checkY, tile });
+      }
+    }
+  }
+  
+  return visible;
+}
+```
+
+**Key Points:**
+- Uses **distance squared** instead of actual distance (avoids expensive square root calculation)
+- Creates a **circular vision area**, not square (tiles at corners beyond radius are excluded)
+- Only includes **walkable tiles** (walls are not visible even if within radius)
+- Vision is calculated **every turn** based on current player position
+
+**Pathfinding Integration:**
+- Vision affects pathfinding - can only find paths to visible tiles
+- `findPathToTile()` uses breadth-first search within visible area
+- Resources beyond vision radius cannot be found by pathfinding algorithms
+- Brain strategies use vision to find closest resources - limited by vision radius
+
+---
+
+#### **Comparison Table: Vision Types**
+
+| Vision Type | Radius | Visible Tiles (approx) | Pathfinding Range | Strategic Planning | Difficulty | Best For |
+|-------------|--------|------------------------|-------------------|-------------------|------------|----------|
+| **Focused** | 3 | ~28 tiles | 3 moves | Very Limited | High | Exploration challenge |
+| **Cautious** | 4 | ~50 tiles | 4 moves | Moderate | Medium-High | Balanced challenge |
+| **Keen-Eyed** | 5 | ~78 tiles | 5 moves | Good | Medium | Standard gameplay |
+| **Far-Sight** | 8 | ~200 tiles | 8+ moves | Excellent | Low | Strategic planning |
+
+---
+
+#### **Vision Impact on Gameplay Systems**
+
+**1. Resource Discovery:**
+- Vision determines which resources are "visible" to the player
+- Brain strategies can only target resources within vision radius
+- Example: With Focused (3 tiles), a resource 5 tiles away is invisible until player moves closer
+
+**2. Pathfinding:**
+- `Vision.findPathToTile()` can only find paths to visible tiles
+- Longer vision = longer pathfinding range
+- Example: With Far-Sight (8 tiles), can plan paths across most of the map
+
+**3. Brain Decision-Making:**
+- All brain strategies use `vision.getVisibleTiles()` to find resources
+- Vision radius directly affects which resources brains can "see"
+- Example: Greedy brain can only collect resources within vision radius
+
+**4. Trophy Hunting:**
+- Trophy must be visible for brains to pursue it
+- Shorter vision = must explore more to find trophy
+- Example: With Focused vision, trophy hunting requires more exploration
+
+**Code Location**: `src/vision.ts` lines 21-59
 
 **Code Location:**
 - **File**: `src/types.ts`
@@ -1184,152 +1384,359 @@ The project implements 4 different vision types, each affecting the player's vis
 
 **Number of brain types: 3**
 
-The project implements 3 distinct AI brain personalities, each with unique decision-making algorithms implemented using the Strategy design pattern:
+The project implements 3 distinct AI brain personalities, each with unique decision-making algorithms implemented using the Strategy design pattern. Each brain has a different philosophy about resource management, trophy hunting, and risk-taking, creating distinct gameplay experiences.
 
-1. **Greedy Brain** (`BrainPersonality.GREEDY`)
-   - **Primary goal**: Collect EVERY resource in sight (food, water, gold) before pursuing trophy
-   - **Resource thresholds**: NONE - ignores resource levels completely
-   - **Decision logic**:
-     1. Scans all visible tiles for resources (excluding trophy and trader)
-     2. If ANY resources found, collects the closest one first
-     3. Only pursues trophy when NO resources are visible
-     4. Fallback: Explores unvisited tiles to find new resources
-   - **Terrain preference**: Prefers low-cost terrain (score -= cost * 10)
-   - **Exploration**: Strongly prefers unvisited tiles (+150 score) to find uncollected resources
-   - **Loop prevention**: Penalizes recently visited tiles (-200 to -50 score based on recency)
-   - **Use case**: Maximizes resource collection, good for building up resources before trophy hunt
+---
 
-2. **Explorer Brain** (`BrainPersonality.EXPLORER`)
-   - **Primary goal**: Maintain resources at 50% of starting levels while pursuing trophy
-   - **Resource thresholds**: 
-     - Safe threshold: 50% of starting resources
-     - Critical threshold: 25% of starting resources
-   - **Decision logic**:
-     1. If critically low (< 25%), emergency resource gathering
-     2. If trophy visible AND not critically low, pursues trophy
-     3. If below safe threshold (< 50%), proactively restocks
-     4. Fallback: Moves conservatively, strongly avoiding expensive terrain
-   - **Terrain preference**: VERY strongly avoids expensive terrain (score -= cost * 40)
-   - **Exploration**: Moderate preference for unvisited tiles (+20 score)
-   - **Risk aversion**: Strongly penalizes expensive terrain to conserve resources
-   - **Use case**: Balanced approach, maintains resources while progressing toward trophy
+#### **1. Greedy Brain** (`BrainPersonality.GREEDY`)
 
-3. **Aggressive Brain** (`BrainPersonality.AGGRESSIVE`)
-   - **Primary goal**: Trophy hunting above all else
-   - **Resource thresholds**:
-     - Critical threshold: 15% of starting resources (only gets resources when absolutely necessary)
-     - Minimum threshold: 10% of starting resources (death prevention)
-   - **Decision logic**:
-     1. If trophy visible AND above minimum threshold, goes for trophy immediately
-     2. If critically low (< 15%), gets resources to survive
-     3. Otherwise: Aggressively searches for trophy
-   - **Terrain preference**: Ignores terrain costs unless resources very low (< 30)
-   - **Exploration**: Strongly prefers unvisited tiles (+100 score) and map center
-   - **Risk tolerance**: Takes risks, only avoids expensive terrain when resources < 30
-   - **Use case**: Fast trophy hunting, takes calculated risks
+**Primary Philosophy**: "Collect EVERYTHING before going for the trophy. Resources are more important than speed."
 
-**How They Work - Strategy Pattern Implementation:**
+**Description**: The Greedy brain is obsessed with resource collection. It will collect every single resource (food, water, gold) visible on the map before even considering the trophy. It has no resource thresholds - it doesn't care if you have 100 food or 5 food, as long as there are resources to collect, it will collect them.
+
+**Resource Thresholds**: 
+- **NONE** - Completely ignores current resource levels
+- Does not check if food/water is low
+- Does not maintain any minimum resource levels
+- Only cares about collecting visible resources
+
+**How It Decides What to Do:**
+
+The Greedy brain follows a strict priority system:
+
+**Step 1: Resource Collection (Highest Priority)**
+- Scans ALL visible tiles using `vision.getVisibleTiles()`
+- Identifies all resources EXCEPT trophy and trader (collects: food/animal, water/spring, gold)
+- If ANY resources are found:
+  - Sorts them by distance (Manhattan distance: `|x - playerX| + |y - playerY|`)
+  - Moves toward the **closest resource** first
+  - Reason: `"GREEDY: Collecting [resourceType] resource"`
+  - **Important**: Will collect resources even if trophy is visible!
+
+**Step 2: Trophy Pursuit (Only if No Resources Visible)**
+- Only checks for trophy if `availableResources.length === 0`
+- If trophy is visible AND no resources are visible:
+  - Moves toward trophy using pathfinding
+  - Reason: `"GREEDY: No resources visible, pursuing trophy"`
+
+**Step 3: Exploration Fallback**
+- If no resources visible and no trophy visible:
+  - Uses scoring system to find best exploration move
+  - **Scoring Formula**:
+    ```
+    score = 0
+    score -= (terrainCost.food + terrainCost.water) * 10  // Prefer low-cost terrain
+    if (tile not visited):
+      score += 150  // STRONGLY prefer unvisited tiles
+    else:
+      score -= 50   // Penalize visited tiles
+      if (tile in recent positions):
+        score -= (200 - recentIndex * 50)  // STRONGLY avoid recent positions
+    score += random(0-5)  // Small randomness
+    ```
+  - Moves to highest-scoring tile
+  - Reason: `"GREEDY: Exploring to find resources"`
+
+**Terrain Preference:**
+- **Moderate preference** for low-cost terrain: `score -= cost * 10`
+- Example: Grass (cost 2) gets -20, Mountain (cost 5) gets -50
+- But unvisited tiles (+150) override terrain cost preference
+
+**Exploration Strategy:**
+- **Strongly prefers unvisited tiles**: +150 score bonus
+- **Strongly avoids recently visited tiles**: -200 to -50 penalty based on recency
+- Recent positions tracked in `recentPositions` array (last 4 positions)
+- This prevents infinite loops and encourages exploration
+
+**Example Decision Flow:**
+1. Player has 50 food, 50 water
+2. Trophy is visible at (10, 10)
+3. Food resource is visible at (5, 5) - **Greedy collects food first!**
+4. After collecting food, if more resources visible, collects those
+5. Only when NO resources visible does it go for trophy
+
+**Use Case**: 
+- Maximizes resource collection
+- Good for building up large resource stockpiles
+- Slower trophy completion but well-prepared
+- Best for players who want to be fully stocked before trophy hunt
+
+**Code Location**: `src/brain-strategies.ts` lines 32-127
+
+---
+
+#### **2. Explorer Brain** (`BrainPersonality.EXPLORER`)
+
+**Primary Philosophy**: "Maintain a safe resource level (50%) while pursuing the trophy. Balance is key."
+
+**Description**: The Explorer brain maintains a careful balance between resource management and trophy hunting. It tries to keep resources at 50% of starting levels while actively pursuing the trophy when visible. It's more conservative than Greedy but more proactive than Aggressive.
+
+**Resource Thresholds**: 
+- **Safe Threshold**: **50%** of starting resources (`EXPLORER_SAFE = 0.5`)
+  - Example: If starting food is 30, safe threshold is 15
+- **Critical Threshold**: **25%** of starting resources (`EXPLORER_CRITICAL = 0.25`)
+  - Example: If starting food is 30, critical threshold is 7.5 → 7 (rounded)
+
+**How It Decides What to Do:**
+
+The Explorer brain uses a priority system based on resource levels:
+
+**Step 1: Critical Emergency (Highest Priority)**
+- Checks if `food < CRITICAL_THRESHOLD` OR `water < CRITICAL_THRESHOLD`
+- If critically low:
+  - Finds closest food or water using `vision.closestFood()` or `vision.closestWater()`
+  - Prioritizes the resource that's lower (if food < water, gets food first)
+  - Reason: `"EXPLORER: Critical [food/water] need - emergency"`
+  - **Overrides trophy pursuit** - survival first!
+
+**Step 2: Trophy Pursuit (If Not Critical)**
+- If trophy is visible AND resources are above critical threshold:
+  - Moves toward trophy using pathfinding
+  - Reason: `"EXPLORER: Trophy visible, pursuing it"`
+  - **Note**: Will pursue trophy even if below safe threshold (50%), as long as not critical
+
+**Step 3: Proactive Restocking (If Below Safe Threshold)**
+- If `food < SAFE_THRESHOLD` (50%):
+  - Finds closest food using `vision.closestFood()`
+  - Moves toward food to maintain 50% level
+  - Reason: `"EXPLORER: Maintaining food at 50% threshold"`
+- If `water < SAFE_THRESHOLD` (50%):
+  - Finds closest water using `vision.closestWater()`
+  - Moves toward water to maintain 50% level
+  - Reason: `"EXPLORER: Maintaining water at 50% threshold"`
+
+**Step 4: Conservative Exploration Fallback**
+- If resources are above safe threshold and no trophy visible:
+  - Uses scoring system with **strong terrain cost avoidance**
+  - **Scoring Formula**:
+    ```
+    score = 0
+    score -= (terrainCost.food + terrainCost.water) * 40  // VERY strongly avoid expensive terrain
+    if (tile not visited):
+      score += 20  // Moderate preference for unvisited tiles
+    else:
+      score -= 30  // Penalize visited tiles
+      if (tile in recent positions):
+        score -= (150 - recentIndex * 30)  // Avoid recent positions
+    score += random(0-3)  // Small randomness
+    ```
+  - Moves to highest-scoring tile
+  - Reason: `"EXPLORER: Moving conservatively, avoiding expensive terrain"`
+
+**Terrain Preference:**
+- **VERY strong avoidance** of expensive terrain: `score -= cost * 40`
+- Example: Grass (cost 2) gets -80, Mountain (cost 5) gets -200
+- This conserves resources to maintain the 50% threshold
+
+**Exploration Strategy:**
+- **Moderate preference** for unvisited tiles: +20 score
+- **Moderate avoidance** of recent positions: -150 to -90 penalty
+- Less aggressive exploration than Greedy or Aggressive
+
+**Example Decision Flow:**
+1. Starting food: 30, current food: 12 (below 50% threshold of 15)
+2. Trophy is visible at (10, 10)
+3. Food resource is visible at (5, 5)
+4. **Explorer gets food first** to maintain 50% threshold
+5. After reaching 15+ food, then pursues trophy
+6. If food drops below 15 again, stops trophy pursuit to restock
+
+**Use Case**: 
+- Balanced approach between resource management and trophy hunting
+- Maintains safe resource levels while progressing
+- Good for players who want steady, reliable progress
+- Best for players who prefer conservative gameplay
+
+**Code Location**: `src/brain-strategies.ts` lines 128-260
+
+---
+
+#### **3. Aggressive Brain** (`BrainPersonality.AGGRESSIVE`)
+
+**Primary Philosophy**: "Trophy first, resources only when absolutely necessary. Speed over safety."
+
+**Description**: The Aggressive brain prioritizes trophy hunting above all else. It only collects resources when absolutely critical (15% of starting resources) and will pursue the trophy even with very low resources (as long as above 10% minimum). It takes calculated risks and ignores terrain costs to reach the trophy faster.
+
+**Resource Thresholds**: 
+- **Critical Threshold**: **15%** of starting resources (`AGGRESSIVE_CRITICAL = 0.15`)
+  - Example: If starting food is 30, critical threshold is 4.5 → 4 (rounded)
+- **Minimum Threshold**: **10%** of starting resources (`AGGRESSIVE_MINIMUM = 0.1`)
+  - Example: If starting food is 30, minimum threshold is 3
+  - Used to prevent death - won't pursue trophy if below this
+
+**How It Decides What to Do:**
+
+The Aggressive brain uses a trophy-first priority system:
+
+**Step 1: Trophy Pursuit (Highest Priority - If Above Minimum)**
+- If trophy is visible:
+  - Checks if `food >= MINIMUM_THRESHOLD` AND `water >= MINIMUM_THRESHOLD`
+  - If above minimum (won't die):
+    - **Immediately** moves toward trophy using pathfinding
+    - Reason: `"AGGRESSIVE: Trophy in sight - going for it!"`
+    - **Ignores all resources** - trophy is the only goal
+  - If below minimum (would die):
+    - Skips to Step 2 to get resources first
+
+**Step 2: Critical Resource Gathering (Only If Absolutely Necessary)**
+- Checks if `food < CRITICAL_THRESHOLD` OR `water < CRITICAL_THRESHOLD`
+- If critically low:
+  - Finds closest food or water using `vision.closestFood()` or `vision.closestWater()`
+  - Prioritizes the resource that's lower
+  - Reason: `"AGGRESSIVE: Critical [food/water] need - must survive"`
+  - Only gets resources to survive, then immediately resumes trophy hunting
+
+**Step 3: Aggressive Trophy Search**
+- If resources are above critical threshold and no trophy visible:
+  - Uses scoring system optimized for trophy finding
+  - **Scoring Formula**:
+    ```
+    score = 0
+    if (tile not visited):
+      score += 100  // Strongly prefer unvisited tiles (might find trophy)
+    else:
+      score -= 30   // Penalize visited tiles
+      if (tile in recent positions):
+        score -= (100 - recentIndex * 25)  // Avoid recent positions
+    // Prefer moving toward map center (trophy often in center)
+    distanceToCenter = |x - mapCenter| + |y - mapCenter|
+    score += (mapSize - distanceToCenter) * 2
+    // Only avoid expensive terrain if resources very low
+    if (food < 30 OR water < 30):
+      score -= (terrainCost.food + terrainCost.water) * 10
+    score += random(0-5)  // Small randomness
+    ```
+  - Moves to highest-scoring tile
+  - Reason: `"AGGRESSIVE: Searching for trophy"`
+
+**Terrain Preference:**
+- **Ignores terrain costs** unless resources are very low (< 30)
+- Will take expensive paths (mountains, swamps) if it means finding trophy faster
+- Only avoids expensive terrain when `food < 30` OR `water < 30`
+- Example: With 20 food, will take Mountain path (cost 5) to reach trophy faster
+
+**Exploration Strategy:**
+- **Strongly prefers unvisited tiles**: +100 score (might contain trophy)
+- **Prefers map center**: `score += (mapSize - distanceToCenter) * 2`
+  - Trophy is often placed near map center, so moving toward center increases chances
+- **Moderate avoidance** of recent positions: -100 to -50 penalty
+
+**Example Decision Flow:**
+1. Starting food: 30, current food: 5 (above minimum of 3, below critical of 4)
+2. Trophy is visible at (10, 10)
+3. Food resource is visible at (5, 5)
+4. **Aggressive goes for trophy immediately!** (food is above minimum threshold)
+5. Ignores the food resource - trophy is priority
+6. Only if food drops below 3 (minimum) would it get resources first
+
+**Use Case**: 
+- Fast trophy hunting
+- Takes calculated risks
+- Good for speed runs or players who want quick completion
+- Best for players who prefer aggressive, risk-taking gameplay
+- May die more often but completes levels faster when successful
+
+**Code Location**: `src/brain-strategies.ts` lines 265-363
+
+---
+
+#### **Comparison Table: Brain Personalities**
+
+| Brain Type | Resource Thresholds | Trophy Priority | Terrain Avoidance | Exploration | Risk Level | Best For |
+|------------|-------------------|----------------|------------------|-------------|------------|----------|
+| **Greedy** | None (ignores levels) | Low (only if no resources) | Moderate (-10×cost) | High (+150 unvisited) | Medium | Resource hoarding |
+| **Explorer** | 50% safe, 25% critical | Medium (if not critical) | Very High (-40×cost) | Moderate (+20 unvisited) | Low | Balanced gameplay |
+| **Aggressive** | 15% critical, 10% minimum | Very High (always) | Low (only if <30 resources) | High (+100 unvisited, center) | High | Speed runs |
+
+---
+
+#### **How Brain Decision-Making Works - Technical Details**
+
+**The Strategy Pattern Implementation:**
 
 The brain system uses the Strategy design pattern (from Lecture 16 - Open/Closed Principle):
 
-1. **Interface Definition**: `IBrainStrategy` interface defines the contract
+1. **Interface Definition** (`src/brain-strategies.ts` lines 8-19):
+   - `IBrainStrategy` interface defines the contract
    - Single method: `calculateMove()` that returns a move decision
    - All strategies must implement this interface
+   - Interface includes: game state, vision, trophy position, resources, visited tiles, recent positions
 
-2. **Strategy Classes**: Each personality has its own strategy class
-   - `GreedyStrategy` implements `IBrainStrategy`
-   - `ExplorerStrategy` implements `IBrainStrategy`
-   - `AggressiveStrategy` implements `IBrainStrategy`
+2. **Strategy Classes**:
+   - `GreedyStrategy` implements `IBrainStrategy` (lines 32-127)
+   - `ExplorerStrategy` implements `IBrainStrategy` (lines 128-260)
+   - `AggressiveStrategy` implements `IBrainStrategy` (lines 265-363)
+   - Each strategy is completely independent and self-contained
 
-3. **Brain Class**: `Brain` class uses composition, not inheritance
+3. **Brain Class** (`src/brain.ts` lines 20-159):
+   - Uses **composition**, not inheritance
    - Contains a `strategy: IBrainStrategy` field
    - Delegates move calculation to the strategy: `this.strategy.calculateMove()`
    - Doesn't know which specific strategy is being used (polymorphism)
+   - Tracks visited tiles and recent positions to prevent infinite loops
 
-4. **Factory Pattern**: `BrainStrategyFactory` creates the appropriate strategy
+4. **Factory Pattern** (`src/brain-strategies.ts` lines 368-381):
+   - `BrainStrategyFactory.create()` creates the appropriate strategy
    - Takes personality type and returns corresponding strategy instance
    - Allows easy addition of new personalities without modifying `Brain` class
 
-5. **Move Calculation Process**:
-   - `Brain.calculateBestMove()` is called with game state
-   - Creates `Vision` instance to see visible tiles
-   - Finds trophy position if visible
-   - Delegates to strategy's `calculateMove()` method
-   - Strategy analyzes state and returns move decision with reason
-   - Brain tracks visited tiles and recent positions to prevent loops
+5. **Move Calculation Process** (`src/brain.ts` lines 100-140):
+   ```
+   Brain.calculateBestMove(gameState):
+     1. Get possible moves (up, down, left, right)
+     2. Create Vision instance to see visible tiles
+     3. Find trophy position if visible
+     4. Get current food/water levels
+     5. Calculate starting resources (based on difficulty)
+     6. Delegate to strategy.calculateMove():
+        - Strategy analyzes state
+        - Strategy makes decision based on its personality
+        - Returns {dx, dy, reason} or null
+     7. If strategy returns null, use basicMove() fallback
+     8. Track visited tiles and recent positions
+     9. Return move decision
+   ```
 
-**Detailed Algorithm Examples:**
+**Pathfinding Integration:**
 
-**Greedy Strategy** (Lines 35-127 in `brain-strategies.ts`):
-```typescript
-// Step 1: Find all visible resources (excluding trophy/trader)
-for (const {x, y, tile} of visibleTiles) {
-  const resource = tile.getResource();
-  if (resource && resource.getType() !== ResourceType.TROPHY && resource.getType() !== ResourceType.TRADER) {
-    availableResources.push({ x, y, type: resource.getType(), distance });
-  }
-}
+All brains use the `Vision` class for pathfinding:
+- `vision.closestFood()` - Finds closest food resource with path
+- `vision.closestWater()` - Finds closest water resource with path
+- `vision.findPathToTile(x, y)` - Finds path to specific tile
+- Pathfinding uses **breadth-first search** with terrain cost consideration
+- Only finds paths to **visible tiles** (limited by vision radius)
 
-// Step 2: If resources found, collect closest
-if (availableResources.length > 0) {
-  availableResources.sort((a, b) => a.distance - b.distance);
-  return move to closest resource;
-}
+**Loop Prevention System:**
 
-// Step 3: Only go for trophy if no resources visible
-if (trophyPos && availableResources.length === 0) {
-  return move to trophy;
-}
+All brains track:
+- **Visited Tiles**: `Set<string>` of all tiles visited (format: `"x,y"`)
+- **Recent Positions**: `string[]` array of last 4 positions
+- Fallback scoring systems penalize:
+  - Visited tiles: -30 to -50 score
+  - Recent positions: -200 to -50 score (more recent = higher penalty)
+- This prevents infinite loops where brain moves back and forth
 
-// Step 4: Fallback - explore to find resources
-return greedyFallback();
-```
+**Resource Threshold Calculations:**
 
-**Explorer Strategy** (Lines 128-264 in `brain-strategies.ts`):
-```typescript
-const SAFE_THRESHOLD = startingResources.food * 0.5;  // 50%
-const CRITICAL_THRESHOLD = startingResources.food * 0.25;  // 25%
+Thresholds are calculated based on **starting resources** (which vary by difficulty):
+- Easy: 30 food, 30 water
+- Medium: 25 food, 25 water
+- Hard: 20 food, 20 water
 
-// Step 1: Critical emergency
-if (food < CRITICAL_THRESHOLD || water < CRITICAL_THRESHOLD) {
-  return move to closest food/water;
-}
+Example calculations for **Easy difficulty** (30 food, 30 water):
+- **Explorer Safe**: 30 × 0.5 = 15 food/water
+- **Explorer Critical**: 30 × 0.25 = 7.5 → 7 food/water (rounded)
+- **Aggressive Critical**: 30 × 0.15 = 4.5 → 4 food/water (rounded)
+- **Aggressive Minimum**: 30 × 0.1 = 3 food/water
 
-// Step 2: Trophy visible - go for it
-if (trophyPos) {
-  return move to trophy;
-}
-
-// Step 3: Below safe threshold - restock
-if (food < SAFE_THRESHOLD) {
-  return move to closest food;
-}
-if (water < SAFE_THRESHOLD) {
-  return move to closest water;
-}
-
-// Step 4: Fallback - conservative movement
-return explorerFallback();
-```
-
-**Aggressive Strategy** (Lines 265-361 in `brain-strategies.ts`):
-```typescript
-const CRITICAL_THRESHOLD = startingResources.food * 0.15;  // 15%
-const MINIMUM_THRESHOLD = startingResources.food * 0.1;  // 10%
-
-// Step 1: Trophy visible - go for it (unless about to die)
-if (trophyPos && food >= MINIMUM_THRESHOLD && water >= MINIMUM_THRESHOLD) {
-  return move to trophy;
-}
-
-// Step 2: Only get resources if critical
-if (food < CRITICAL_THRESHOLD || water < CRITICAL_THRESHOLD) {
-  return move to closest food/water;
-}
-
-// Step 3: Aggressively search for trophy
-return aggressiveFallback();
-```
+**Code Locations:**
+- **Strategy Interface**: `src/brain-strategies.ts` lines 8-19
+- **Greedy Strategy**: `src/brain-strategies.ts` lines 32-127
+- **Explorer Strategy**: `src/brain-strategies.ts` lines 128-260
+- **Aggressive Strategy**: `src/brain-strategies.ts` lines 265-363
+- **Brain Class**: `src/brain.ts` lines 20-159
+- **Strategy Factory**: `src/brain-strategies.ts` lines 368-381
+- **Threshold Constants**: `src/types.ts` lines 96-104
 
 **Code Location:**
 - **File**: `src/brain-strategies.ts`
